@@ -7516,6 +7516,18 @@ async function initCamera() {
     statusElement = document.getElementById('status');
     resetButton = document.getElementById('reset-button');
     
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+      const startText = startScreen.querySelector('.start-text');
+      if (startText) {
+        startText.textContent = 'Requesting camera access...';
+      }
+      const startButton = document.getElementById('start-button');
+      if (startButton) {
+        startButton.disabled = true;
+      }
+    }
+    
     statusElement.style.display = 'block';
     
     // Make camera container visible early so user sees something
@@ -7553,63 +7565,20 @@ async function initCamera() {
     setupConnectionMonitoring();
     
     await new Promise((resolve) => {
-      let timeoutId = setTimeout(() => {
-        console.log('Video metadata timeout - showing play button');
-        statusElement.textContent = 'Tap screen to start camera';
-        // Add click listener to start video when user taps
-        const startVideoHandler = async () => {
-          video.removeEventListener('click', startVideoHandler);
-          video.removeEventListener('touchstart', startVideoHandler);
-          try {
-            statusElement.textContent = 'Starting camera...';
-            await video.play();
-            applyVideoTransform();
-            applyZoom(1);
-            statusElement.textContent = 'Camera ready';
-            resolve();
-          } catch (err) {
-            console.error('Video play error after tap:', err);
-            resolve();
-          }
-        };
-        video.addEventListener('click', startVideoHandler);
-        video.addEventListener('touchstart', startVideoHandler);
-      }, 2000);
-      
       video.onloadedmetadata = async () => {
         try {
           await video.play();
           applyVideoTransform();
           applyZoom(1);
-          clearTimeout(timeoutId);
           setTimeout(resolve, 100);
         } catch (err) {
           console.error('Video play error:', err);
-          clearTimeout(timeoutId);
-          // Video play failed - likely needs user interaction, show tap to start
-          statusElement.textContent = 'Tap screen to start camera';
-          const startVideoHandler = async () => {
-            video.removeEventListener('click', startVideoHandler);
-            video.removeEventListener('touchstart', startVideoHandler);
-            try {
-              statusElement.textContent = 'Starting camera...';
-              await video.play();
-              applyVideoTransform();
-              applyZoom(1);
-              statusElement.textContent = 'Camera ready';
-              resolve();
-            } catch (err) {
-              console.error('Video play error after tap:', err);
-              resolve();
-            }
-          };
-          video.addEventListener('click', startVideoHandler);
-          video.addEventListener('touchstart', startVideoHandler);
+          resolve();
         }
       };
     });
     
-    // Camera container is always visible now
+    document.getElementById('start-screen').remove();
     const cameraContainer2 = document.getElementById('camera-container');
     if (cameraContainer2) {
       cameraContainer2.style.display = 'flex';
@@ -10707,8 +10676,39 @@ window.addEventListener('load', () => {
   const versionEl = document.getElementById('app-version');
      if (versionEl) versionEl.textContent = APP_VERSION;
 
-  // Start camera directly on load (no splash screen)
-  initCamera();
+  // Don't start camera directly - wait for user to click Start button
+  const startBtn = document.getElementById('start-button');
+  if (startBtn) {
+    startBtn.addEventListener('click', () => {
+      // Play shutter sound
+      playCameraShutterSound();
+      
+      // Add camera flash effect
+      const cameraBody = document.querySelector('.camera-body');
+      if (cameraBody) {
+        cameraBody.style.transition = 'all 0.1s';
+        cameraBody.style.boxShadow = '0 0 50px rgba(255, 255, 255, 1)';
+        setTimeout(() => {
+          cameraBody.style.boxShadow = '';
+        }, 100);
+      }
+      
+      // Add lens snap effect
+      const lensInner = document.querySelector('.lens-inner');
+      if (lensInner) {
+        lensInner.style.transition = 'all 0.05s';
+        lensInner.style.transform = 'translate(-50%, -50%) scale(0.95)';
+        setTimeout(() => {
+          lensInner.style.transform = 'translate(-50%, -50%) scale(1)';
+        }, 50);
+      }
+      
+      // Initialize camera after brief delay for effect
+      setTimeout(() => {
+        initCamera();
+      }, 300);
+    });
+  }
 
   // Mode carousel buttons removed
 
