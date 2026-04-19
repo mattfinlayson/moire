@@ -4,11 +4,12 @@ import { resolve } from 'path'
 export default defineConfig({
   base: './',
   build: {
-    outDir: 'dist',
+    outDir: 'docs',
     assetsDir: 'assets',
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(__dirname, 'index.html'),
+        install: resolve(__dirname, 'install.html')
       }
     }
   }
