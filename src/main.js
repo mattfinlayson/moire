@@ -7609,7 +7609,7 @@ async function initCamera() {
     updatePresetDisplay();
     
     // Build the styles menu now that presets are loaded
-    renderMenuStyles();
+    populateStylesList();
     
     // Show online indicator for 3 seconds
     const connectionStatus = document.getElementById('connection-status');
@@ -13777,7 +13777,7 @@ document.getElementById('factory-reset-button').addEventListener('click', async 
         saveVisiblePresets();
     }
     
-    renderMenuStyles();
+    populateStylesList();
     
     const successMessage = hasImportedPresets
       ? 'All custom presets deleted, modifications cleared, and queue reset. Reset to imported presets!'
