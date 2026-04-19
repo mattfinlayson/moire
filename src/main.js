@@ -7553,15 +7553,58 @@ async function initCamera() {
     setupConnectionMonitoring();
     
     await new Promise((resolve) => {
+      let timeoutId = setTimeout(() => {
+        console.log('Video metadata timeout - showing play button');
+        statusElement.textContent = 'Tap screen to start camera';
+        // Add click listener to start video when user taps
+        const startVideoHandler = async () => {
+          video.removeEventListener('click', startVideoHandler);
+          video.removeEventListener('touchstart', startVideoHandler);
+          try {
+            statusElement.textContent = 'Starting camera...';
+            await video.play();
+            applyVideoTransform();
+            applyZoom(1);
+            statusElement.textContent = 'Camera ready';
+            resolve();
+          } catch (err) {
+            console.error('Video play error after tap:', err);
+            resolve();
+          }
+        };
+        video.addEventListener('click', startVideoHandler);
+        video.addEventListener('touchstart', startVideoHandler);
+      }, 2000);
+      
       video.onloadedmetadata = async () => {
         try {
           await video.play();
           applyVideoTransform();
           applyZoom(1);
+          clearTimeout(timeoutId);
           setTimeout(resolve, 100);
         } catch (err) {
           console.error('Video play error:', err);
-          resolve();
+          clearTimeout(timeoutId);
+          // Video play failed - likely needs user interaction, show tap to start
+          statusElement.textContent = 'Tap screen to start camera';
+          const startVideoHandler = async () => {
+            video.removeEventListener('click', startVideoHandler);
+            video.removeEventListener('touchstart', startVideoHandler);
+            try {
+              statusElement.textContent = 'Starting camera...';
+              await video.play();
+              applyVideoTransform();
+              applyZoom(1);
+              statusElement.textContent = 'Camera ready';
+              resolve();
+            } catch (err) {
+              console.error('Video play error after tap:', err);
+              resolve();
+            }
+          };
+          video.addEventListener('click', startVideoHandler);
+          video.addEventListener('touchstart', startVideoHandler);
         }
       };
     });
