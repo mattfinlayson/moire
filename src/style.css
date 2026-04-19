@@ -72,7 +72,7 @@ html, body {
     position: absolute;
     top: 0;
     left: 0;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     background-color: #000;
