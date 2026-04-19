@@ -7518,6 +7518,12 @@ async function initCamera() {
     
     statusElement.style.display = 'block';
     
+    // Make camera container visible early so user sees something
+    const cameraContainer = document.getElementById('camera-container');
+    if (cameraContainer) {
+      cameraContainer.style.display = 'flex';
+    }
+    
     await enumerateCameras();
     
     if (availableCameras.length > 1) {
@@ -7561,6 +7567,10 @@ async function initCamera() {
     });
     
     // Camera container is always visible now
+    const cameraContainer2 = document.getElementById('camera-container');
+    if (cameraContainer2) {
+      cameraContainer2.style.display = 'flex';
+    }
     
     const cameraButton = document.getElementById('camera-button');
     if (availableCameras.length > 1) {
