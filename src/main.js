@@ -10689,41 +10689,10 @@ window.addEventListener('load', () => {
 //  setupTapToFocus();
   
   const versionEl = document.getElementById('app-version');
-     if (versionEl) versionEl.textContent = APP_VERSION;
+  if (versionEl) versionEl.textContent = APP_VERSION;
 
-  // Don't start camera directly - wait for user to click Start button
-  const startBtn = document.getElementById('start-button');
-  if (startBtn) {
-    startBtn.addEventListener('click', () => {
-      // Play shutter sound
-      playCameraShutterSound();
-      
-      // Add camera flash effect
-      const cameraBody = document.querySelector('.camera-body');
-      if (cameraBody) {
-        cameraBody.style.transition = 'all 0.1s';
-        cameraBody.style.boxShadow = '0 0 50px rgba(255, 255, 255, 1)';
-        setTimeout(() => {
-          cameraBody.style.boxShadow = '';
-        }, 100);
-      }
-      
-      // Add lens snap effect
-      const lensInner = document.querySelector('.lens-inner');
-      if (lensInner) {
-        lensInner.style.transition = 'all 0.05s';
-        lensInner.style.transform = 'translate(-50%, -50%) scale(0.95)';
-        setTimeout(() => {
-          lensInner.style.transform = 'translate(-50%, -50%) scale(1)';
-        }, 50);
-      }
-      
-      // Initialize camera after brief delay for effect
-      setTimeout(() => {
-        initCamera();
-      }, 300);
-    });
-  }
+  // Auto-start camera on launch
+  initCamera();
 
   // Mode carousel buttons removed
 
