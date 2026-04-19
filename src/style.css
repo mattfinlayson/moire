@@ -251,8 +251,17 @@ html, body {
     justify-content: center;
     text-align: center;
     padding: 5vw;
-    background: linear-gradient(135deg, #000 0%, #1a1a1a 50%, #000 100%);
+    background: #1a1a1a;
     overflow: hidden;
+}
+
+.splash-title {
+    font-size: 15vw;
+    font-weight: 700;
+    color: #FE5F00;
+    margin: 0;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(254, 95, 0, 0.3);
 }
 
 /* Camera Animation Container */
