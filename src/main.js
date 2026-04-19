@@ -7617,7 +7617,22 @@ async function initCamera() {
     }
   } catch (err) {
     console.error('Camera access error:', err);
-    statusElement.textContent = 'Camera access denied - please grant camera permission';
+    // Show more helpful error message based on error type
+    let errorMsg = 'Camera error: ' + err.message;
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      errorMsg = 'Camera access denied - please allow camera permission';
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      errorMsg = 'No camera found on this device';
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      errorMsg = 'Camera is in use by another app';
+    } else if (err.name === 'SecurityError') {
+      errorMsg = 'Camera blocked - HTTPS required for camera access';
+    }
+    if (CAMERA_PRESETS.length === 0) {
+      errorMsg += ' (also: no presets imported)';
+    }
+    statusElement.textContent = errorMsg;
+    console.log('Camera error details:', err.name, err.message);
     document.getElementById('camera-container').style.display = 'flex';
     
     if (typeof PluginMessageHandler !== 'undefined') {
