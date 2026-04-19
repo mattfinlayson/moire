@@ -10691,8 +10691,15 @@ window.addEventListener('load', () => {
   const versionEl = document.getElementById('app-version');
   if (versionEl) versionEl.textContent = APP_VERSION;
 
-  // Auto-start camera on launch
-  initCamera();
+  // R1 requires user interaction before camera access
+  // Show splash screen with "Tap to start" hint
+  const startScreen = document.getElementById('start-screen');
+  if (startScreen) {
+    startScreen.addEventListener('pointerup', function() {
+      startScreen.style.display = 'none';
+      initCamera();
+    }, { passive: true });
+  }
 
   // Mode carousel buttons removed
 

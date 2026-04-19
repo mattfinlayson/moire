@@ -253,6 +253,22 @@ html, body {
     padding: 5vw;
     background: #1a1a1a;
     overflow: hidden;
+    z-index: 1000;
+}
+
+.splash-title {
+    font-size: 15vw;
+    font-weight: 700;
+    color: #FE5F00;
+    margin: 0 0 4vh 0;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(254, 95, 0, 0.3);
+}
+
+.start-hint {
+    font-size: 4vw;
+    color: #888;
+    margin: 0;
 }
 
 /* Camera Animation Container */
