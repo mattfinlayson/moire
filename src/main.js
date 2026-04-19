@@ -3428,6 +3428,18 @@ async function loadStyles() {
     loadResolution();
     // loadWhiteBalanceSettings();
     
+    // Initialize CAMERA_PRESETS from presets.json
+    try {
+      const allFactoryPresets = await presetImporter.loadPresetsFromFile();
+      CAMERA_PRESETS = [...allFactoryPresets];
+      totalFactoryPresetCount = allFactoryPresets.length;
+      const tutorialCountEl = document.getElementById('tutorial-preset-count');
+      if (tutorialCountEl) tutorialCountEl.textContent = totalFactoryPresetCount;
+    } catch (e) {
+      console.log('Could not load presets:', e);
+      CAMERA_PRESETS = [];
+    }
+    
     // Load visible presets — runs for all users every startup
     const visibleJson = localStorage.getItem(VISIBLE_PRESETS_KEY);
     if (visibleJson) {
@@ -7595,6 +7607,9 @@ async function initCamera() {
       }
 
     updatePresetDisplay();
+    
+    // Build the styles menu now that presets are loaded
+    renderMenuStyles();
     
     // Show online indicator for 3 seconds
     const connectionStatus = document.getElementById('connection-status');
