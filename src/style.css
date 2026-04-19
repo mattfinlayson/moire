@@ -251,7 +251,7 @@ html, body {
     justify-content: center;
     text-align: center;
     padding: 5vw;
-    background: linear-gradient(135deg, #000 0%, #1a1a1a 50%, #000 100%);
+    background: #1a1a1a;
     overflow: hidden;
 }
 
@@ -522,10 +522,19 @@ html, body {
     }
 }
 
+.splash-title {
+    font-size: 15vw;
+    font-weight: 700;
+    color: #FE5F00;
+    margin-bottom: 2vh;
+    letter-spacing: 2px;
+    text-shadow: 0 0 30px rgba(254, 95, 0, 0.3);
+}
+
 .start-text {
-    font-size: 5vw;
-    margin-bottom: 8vh;
-    color: #ccc;
+    font-size: 4vw;
+    margin-bottom: 4vh;
+    color: #888;
 }
 
 .start-button {
