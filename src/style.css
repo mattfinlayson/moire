@@ -2298,6 +2298,35 @@ button:disabled {
     color: #000;
 }
 
+/* Back to Camera button — below close button */
+.viewer-back-to-camera {
+    position: absolute;
+    top: 15vh;
+    right: 1vw;
+    width: 12vw;
+    height: 12vw;
+    min-width: 44px;
+    min-height: 44px;
+    background: transparent;
+    color: #FE5F00;
+    border: 2px solid #FE5F00;
+    border-radius: 2vw;
+    font-size: 4vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2001;
+    padding: 0;
+    text-align: center;
+    line-height: 1.1;
+}
+
+.viewer-back-to-camera:active {
+    background-color: #FE5F00;
+    color: #000;
+}
+
 /* MASTER and OPTIONS moved to left carousel — stubs keep JS class toggling safe */
 .viewer-mp-button.enabled { background-color: rgba(76, 175, 80, 0.95); border-color: #4CAF50; }
 .viewer-options-button.enabled { background-color: rgba(76, 175, 80, 0.95); border-color: #4CAF50; }

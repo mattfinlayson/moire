@@ -12821,6 +12821,18 @@ const result = await presetImporter.import();
     closeViewerBtn.addEventListener('click', closeImageViewer);
   }
   
+  const backToCameraBtn = document.getElementById('viewer-back-to-camera');
+  if (backToCameraBtn) {
+    backToCameraBtn.addEventListener('click', () => {
+      document.getElementById('image-viewer').style.display = 'none';
+      document.getElementById('gallery-modal').style.display = 'none';
+      currentViewerImageIndex = -1;
+      viewerZoom = 1;
+      window.viewerLoadedPreset = null;
+      hideGallery();
+    });
+  }
+  
   const deleteViewerBtn = document.getElementById('delete-viewer-image');
   if (deleteViewerBtn) {
     deleteViewerBtn.addEventListener('click', deleteViewerImage);
