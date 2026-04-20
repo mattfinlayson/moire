@@ -861,6 +861,12 @@ async function showGallery(renderOnly = false) {
     
     // Reload gallery from IndexedDB to ensure we have latest data
     await loadGallery();
+    
+    // Hide left carousel so it doesn't block gallery clicks
+    const leftCamCarousel = document.getElementById('left-cam-carousel');
+    if (leftCamCarousel) {
+      leftCamCarousel.style.display = 'none';
+    }
   }
   const modal = document.getElementById('gallery-modal');
   const grid = document.getElementById('gallery-grid');
@@ -1094,6 +1100,14 @@ async function showGallery(renderOnly = false) {
 async function hideGallery() {
   document.getElementById('gallery-modal').style.display = 'none';
   currentGalleryPage = 1;
+  
+  // Restore left carousel before reinitializing camera
+  const leftCamCarousel = document.getElementById('left-cam-carousel');
+  if (leftCamCarousel) {
+    leftCamCarousel.style.display = 'flex';
+    leftCamCarousel.classList.remove('hidden');
+  }
+  
   await reinitializeCamera(); // Re-initialize fully so camera switch works after gallery
   
   // Restore status element display (in case it was hidden by upload function)
