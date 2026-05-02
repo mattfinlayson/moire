@@ -567,6 +567,81 @@ function showRouletteToast(presetName) {
   }, 2000);
 }
 
+// Roulette modal event handlers
+(function setupRouletteHandlers() {
+  const primary = document.getElementById('roulette-primary');
+  const altTiles = document.querySelectorAll('.roulette-tile.alt');
+  const rerollBtn = document.getElementById('roulette-reroll-btn');
+  const modal = document.getElementById('roulette-modal');
+
+  if (!primary || !rerollBtn || !modal) return;
+
+  function selectPreset(preset) {
+    const m = document.getElementById('roulette-modal');
+    if (!m._rouletteCleanup) return;
+    const resolve = m._rouletteResolve;
+    m._rouletteCleanup();
+    // Find and highlight the tile
+    const allTiles = document.querySelectorAll('.roulette-tile');
+    allTiles.forEach(t => {
+      if (t._preset === preset) t.classList.add('selected');
+    });
+    setTimeout(() => resolve(preset), 300);
+  }
+
+  primary.addEventListener('click', () => {
+    const p = primary._preset;
+    if (p) selectPreset(p);
+  });
+
+  altTiles.forEach(tile => {
+    tile.addEventListener('click', () => {
+      const p = tile._preset;
+      if (p) selectPreset(p);
+    });
+  });
+
+  rerollBtn.addEventListener('click', () => {
+    const m = document.getElementById('roulette-modal');
+    if (!m._rouletteOptions) return;
+
+    // Clear old timer
+    clearTimeout(m._rouletteTimer);
+
+    // Generate new options
+    const newOptions = generateRouletteOptions();
+    if (!newOptions.primary) return;
+    m._rouletteOptions = newOptions;
+
+    // Update DOM
+    document.querySelector('#roulette-primary .roulette-name').textContent = newOptions.primary.name;
+    primary._preset = newOptions.primary;
+
+    const alts = document.querySelectorAll('.roulette-tile.alt');
+    alts.forEach((tile, i) => {
+      tile.querySelector('.roulette-name').textContent = newOptions.alts[i].name;
+      tile._preset = newOptions.alts[i];
+    });
+
+    // Shuffle animation
+    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
+    const content = modal.querySelector('.roulette-content');
+    if (content) {
+      content.classList.remove('shuffling');
+      void content.offsetWidth; // force reflow
+      content.classList.add('shuffling');
+    }
+
+    // Reset auto-select timer
+    m._rouletteTimer = setTimeout(() => {
+      const r = m._rouletteResolve;
+      m._rouletteCleanup();
+      primary.classList.add('selected');
+      setTimeout(() => r(newOptions.primary), 300);
+    }, 5000);
+  });
+})();
+
 // Style reveal functionality
 function showStyleReveal(styleName) {
   if (styleRevealTimeout) {
@@ -3978,6 +4053,30 @@ function getRandomPresetIndex() {
   // Otherwise pick from all visible presets
   const randomPreset = sortedPresets[Math.floor(Math.random() * sortedPresets.length)];
   return CAMERA_PRESETS.findIndex(p => p === randomPreset);
+}
+
+// Generate 5 unique random presets for roulette modal
+function generateRouletteOptions() {
+  const sortedPresets = getSortedPresets();
+
+  if (sortedPresets.length === 0) {
+    return { primary: null, alts: [] };
+  }
+
+  // Fisher-Yates shuffle on a copy of indices
+  const indices = Array.from({ length: sortedPresets.length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  // Take up to 5 unique; cycle if fewer than 5 visible
+  const picks = [];
+  for (let i = 0; i < 5; i++) {
+    picks.push(sortedPresets[indices[i % indices.length]]);
+  }
+
+  return { primary: picks[0], alts: picks.slice(1) };
 }
 
 function toggleMotionDetection() {
@@ -7859,21 +7958,85 @@ async function resumeCamera() {
   }
 }
 
+// Show roulette modal and return Promise that resolves with selected preset
+function showRouletteModal() {
+  return new Promise((resolve) => {
+    const options = generateRouletteOptions();
+    if (!options.primary) {
+      resolve(null);
+      return;
+    }
+
+    // Populate DOM
+    document.querySelector('#roulette-primary .roulette-name').textContent = options.primary.name;
+    const altTiles = document.querySelectorAll('.roulette-tile.alt');
+    altTiles.forEach((tile, i) => {
+      tile.querySelector('.roulette-name').textContent = options.alts[i].name;
+    });
+
+    // Store presets on elements for click handlers
+    document.getElementById('roulette-primary')._preset = options.primary;
+    altTiles.forEach((tile, i) => {
+      tile._preset = options.alts[i];
+    });
+
+    // Clear previous selection state
+    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
+
+    const modal = document.getElementById('roulette-modal');
+    const content = modal.querySelector('.roulette-content');
+    if (content) content.classList.remove('shuffling');
+
+    modal.style.display = 'flex';
+
+    // 5s auto-select timer
+    let autoSelectTimer = setTimeout(() => {
+      cleanup();
+      document.getElementById('roulette-primary').classList.add('selected');
+      setTimeout(() => resolve(options.primary), 300);
+    }, 5000);
+
+    function cleanup() {
+      clearTimeout(autoSelectTimer);
+      modal.style.display = 'none';
+      modal._rouletteResolve = null;
+      modal._rouletteOptions = null;
+      modal._rouletteTimer = null;
+      modal._rouletteCleanup = null;
+    }
+
+    // Store resolve/cleanup on modal for event handlers (U4)
+    modal._rouletteResolve = resolve;
+    modal._rouletteOptions = options;
+    modal._rouletteTimer = autoSelectTimer;
+    modal._rouletteCleanup = cleanup;
+  });
+}
+
 // Capture photo and send to WebSocket
-function capturePhoto() {
+async function capturePhoto() {
   if (!stream) return;
-  
-  // Always use random preset (roulette mode)
+
   const previousIndex = currentPresetIndex;
-  currentPresetIndex = getRandomPresetIndex();
-  
-  // Only show toast if we actually selected a different preset
-  if (currentPresetIndex !== previousIndex) {
-    showRouletteToast(CAMERA_PRESETS[currentPresetIndex].name);
+
+  if (isRandomMode && !isTimerMode && !isMotionDetectionMode && !isBurstMode) {
+    // Roulette path: show modal, await user selection
+    const selectedPreset = await showRouletteModal();
+    if (!selectedPreset) return;
+    currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPreset);
+    showStyleReveal(selectedPreset.name);
+  } else {
+    // Original random selection path
+    currentPresetIndex = getRandomPresetIndex();
+
+    // Only show toast if we actually selected a different preset
+    if (currentPresetIndex !== previousIndex) {
+      showRouletteToast(CAMERA_PRESETS[currentPresetIndex].name);
+    }
+
+    // Also show the style reveal popup
+    showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
   }
-  
-  // Also show the style reveal popup
-  showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
   
   // Only resize if dimensions actually changed to save CPU
   if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
