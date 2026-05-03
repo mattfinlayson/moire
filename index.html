@@ -16,6 +16,15 @@
             <video id="video" autoplay playsinline muted></video>
             <img id="captured-image" style="display: none;" alt="Captured photo">
             <canvas id="canvas" style="display: none;"></canvas>
+            <div id="picker-overlay" class="picker-overlay" style="display: none;">
+                <div id="picker-primary" class="picker-primary selected">
+                    <span class="picker-name">...</span>
+                </div>
+                <div class="picker-alts">
+                    <div class="picker-alt" data-index="0"><span class="picker-name">...</span></div>
+                    <div class="picker-alt" data-index="1"><span class="picker-name">...</span></div>
+                </div>
+            </div>
         </div>
         <p id="status" class="status-text" style="display: none;">Initializing camera...</p>
         <button id="reset-button" class="reset-button" style="display: none;">New Photo</button>
@@ -67,29 +76,6 @@
         <button id="sync-button" class="sync-button" title="Sync Queued Photos" style="display: none;">
             🔄 Sync (<span id="sync-count">0</span>)
         </button>
-        
-        <!-- Roulette Modal -->
-        <div id="roulette-modal" class="roulette-modal" style="display: none;">
-            <div class="roulette-content">
-                <div class="roulette-header">
-                    <h3>🎰 ROUTLETTE</h3>
-                </div>
-                <div class="roulette-main-slot">
-                    <div id="roulette-primary" class="roulette-tile primary">
-                        <span class="roulette-name">???</span>
-                    </div>
-                </div>
-                <div class="roulette-alts-grid">
-                    <div class="roulette-tile alt" data-index="0"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="1"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="2"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="3"><span class="roulette-name">???</span></div>
-                </div>
-                <div class="roulette-footer">
-                    <button id="roulette-reroll-btn" class="roulette-reroll-btn">🎰 Spin Again</button>
-                </div>
-            </div>
-        </div>
 
         <!-- Unified Menu -->
         <div id="unified-menu" class="styles-menu" style="display: none;">
