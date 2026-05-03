@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Moire</title>
-  <script type="module" crossorigin src="./assets/main-DXvhR-oc.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-D3REHaIs.css">
+  <script type="module" crossorigin src="./assets/main-DIf-Wglb.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-vkYLdfSb.css">
 </head>
 <body>
     <div id="app">
@@ -74,6 +74,29 @@
             🔄 Sync (<span id="sync-count">0</span>)
         </button>
         
+        <!-- Roulette Modal -->
+        <div id="roulette-modal" class="roulette-modal" style="display: none;">
+            <div class="roulette-content">
+                <div class="roulette-header">
+                    <h3>🎰 ROUTLETTE</h3>
+                </div>
+                <div class="roulette-main-slot">
+                    <div id="roulette-primary" class="roulette-tile primary">
+                        <span class="roulette-name">???</span>
+                    </div>
+                </div>
+                <div class="roulette-alts-grid">
+                    <div class="roulette-tile alt" data-index="0"><span class="roulette-name">???</span></div>
+                    <div class="roulette-tile alt" data-index="1"><span class="roulette-name">???</span></div>
+                    <div class="roulette-tile alt" data-index="2"><span class="roulette-name">???</span></div>
+                    <div class="roulette-tile alt" data-index="3"><span class="roulette-name">???</span></div>
+                </div>
+                <div class="roulette-footer">
+                    <button id="roulette-reroll-btn" class="roulette-reroll-btn">🎰 Spin Again</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Unified Menu -->
         <div id="unified-menu" class="styles-menu" style="display: none;">
             <div class="styles-menu-content">

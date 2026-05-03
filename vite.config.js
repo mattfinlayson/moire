@@ -4,6 +4,7 @@ import { resolve } from 'path'
 export default defineConfig({
   base: './',
   build: {
+    emptyOutDir: false,
     outDir: 'docs',
     assetsDir: 'assets',
     rollupOptions: {
