@@ -188,9 +188,6 @@ let isRandomMode = false;
 let noMagicMode = false;
 const NO_MAGIC_MODE_KEY = 'r1_camera_no_magic_mode';
 
-// Manual Options mode
-let manualOptionsMode = false;
-const MANUAL_OPTIONS_KEY = 'r1_camera_manual_options';
 const TOUR_PROGRESS_KEY = 'r1_camera_tour_progress';
 const APP_VERSION = (() => {
   const d = new Date(document.lastModified);
@@ -286,22 +283,18 @@ let multiPresetImageId = null;
 
 let isCameraMultiPresetActive = false;
 let cameraSelectedPresets = []; // The presets selected for next capture
-let cameraMultiManualSelections = {}; // Saved manual option selections per preset name
 const CAMERA_MULTI_PRESET_KEY = 'r1_camera_multi_presets';
-const CAMERA_MULTI_SELECTIONS_KEY = 'r1_camera_multi_selections';
 
 // Camera LAYER-preset variables (combines multiple presets into ONE prompt)
 
 let isCameraLayerActive = false;
 let cameraLayerPresets = []; // [primaryPreset, layer1, layer2, ...]
-let cameraLayerManualSelections = {}; // Manual option selections per preset name
 const CAMERA_LAYER_PRESET_KEY = 'r1_camera_layer_presets';
 
 // Gallery LAYER-preset variables (persists while viewer is open)
 
 let isGalleryLayerActive = false;
 let galleryLayerPresets = []; // saved layer selections for the gallery viewer
-let galleryLayerManualSelections = {}; // saved manual option selections
 
 // Shared flag so selectPreset() knows we are picking layers
 
@@ -1205,7 +1198,6 @@ function openImageViewer(index) {
   window.viewerLoadedPreset = null;
   isGalleryLayerActive         = false;
   galleryLayerPresets          = [];
-  galleryLayerManualSelections = {};
   const presetHeader = document.getElementById('viewer-preset-header');
   if (presetHeader) presetHeader.textContent = 'NO PRESET LOADED';
 
@@ -1226,16 +1218,6 @@ function openImageViewer(index) {
     }
   }
 
-  // Light up Options button if manual options mode is enabled
-  const optionsBtn = document.getElementById('options-viewer-button');
-  if (optionsBtn) {
-    if (manualOptionsMode) {
-      optionsBtn.classList.add('enabled');
-    } else {
-      optionsBtn.classList.remove('enabled');
-    }
-  }
-  
   viewer.style.display = 'flex';
   // Ensure both carousels are visible when viewer opens
   if (window.initViewerCarousels) window.initViewerCarousels();
@@ -1862,12 +1844,11 @@ async function submitMagicTransform() {
   }
 
   // GALLERY LAYER MODE
-  // This prevents the random preset picker and wrong manual options modal from firing.
 
   if (isGalleryLayerActive && galleryLayerPresets.length > 0) {
     const item = galleryImages[currentViewerImageIndex];
     const resizedImageBase64 = await resizeImageForSubmission(item.imageBase64);
-    const magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets, galleryLayerManualSelections);
+    const magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets);
     if (typeof PluginMessageHandler !== 'undefined') {
       const layerMagicPayload = { pluginId: 'com.r1.pixelart', imageBase64: resizedImageBase64 };
       if (magicPrompt && magicPrompt.trim()) layerMagicPayload.message = magicPrompt;
@@ -1908,26 +1889,9 @@ async function submitMagicTransform() {
     
     // Show which preset was randomly selected
     alert(`Using random preset: ${presetName}`);
-  }
-  
- // Handle manual options for gallery
-  // Manual Options does NOT work with No Magic Mode
-  if (manualOptionsMode && !noMagicMode && matchedPreset) {
-    const options = parsePresetOptions(matchedPreset);
-    
-    if (options.length > 0) {
-      const selectedValue = await showManualOptionsModal(matchedPreset, options);
-      
-      if (selectedValue === null) {
-        return; // User cancelled
-      }
-      
-      manualSelection = selectedValue;
-    }
-  }
   
   // If manual options mode is OFF, check if user made inline selections in the viewer
-  if (!manualOptionsMode && matchedPreset && matchedPreset.randomizeOptions) {
+  if (matchedPreset && matchedPreset.randomizeOptions) {
     const inlineSelection = collectViewerSelectedOptions(matchedPreset);
     if (inlineSelection !== null) {
       manualSelection = inlineSelection;
@@ -1941,7 +1905,7 @@ async function submitMagicTransform() {
     // If gallery Layer mode is active, build the combined layer prompt instead
     let magicPrompt;
     if (isGalleryLayerActive && galleryLayerPresets.length > 0) {
-      magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets, galleryLayerManualSelections);
+      magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets);
     } else {
       magicPrompt = getFinalPrompt(matchedPreset || {name: presetName, message: prompt, options: [], randomizeOptions: false, additionalInstructions: ''}, manualSelection);
     }
@@ -2100,15 +2064,6 @@ async function processBatchImages(preset, imagesToProcess) {
   const selectedIds = imagesToProcess || Array.from(selectedBatchImages);
   const total = selectedIds.length;
 
-  // If Manual Options mode is on, ask the user ONCE before processing any images
-  let batchManualSelection = null;
-  if (manualOptionsMode && !noMagicMode) {
-    const options = parsePresetOptions(preset);
-    if (options.length > 0) {
-      batchManualSelection = await showManualOptionsModal(preset, options);
-    }
-  }
-
   const overlay = document.createElement('div');
   overlay.className = 'batch-progress-overlay';
   overlay.innerHTML = `
@@ -2126,7 +2081,7 @@ async function processBatchImages(preset, imagesToProcess) {
     if (!image) continue;
     
     try {
-      const finalPrompt = getFinalPrompt(preset, batchManualSelection);
+      const finalPrompt = getFinalPrompt(preset, null);
       const resizedImageBase64 = await resizeImageForSubmission(image.imageBase64);
       
       if (typeof PluginMessageHandler !== 'undefined') {
@@ -2332,7 +2287,7 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
       const presetsToApply = [...cameraSelectedPresets];
       for (let i = 0; i < presetsToApply.length; i++) {
         const p = presetsToApply[i];
-        const manualSelection = cameraMultiManualSelections[p.name] || null;
+        const manualSelection = null;
 
         // Apply combine preamble for multi-preset (not voice mode)
         window.isCombinedMode = true;
@@ -2361,7 +2316,7 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
 
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0 && !presetOverride) {
       // Layer combine: merge all layer presets into ONE prompt, apply combine preamble to primary
-      const combinedPrompt = buildCombinedLayerPrompt(cameraLayerPresets, cameraLayerManualSelections);
+      const combinedPrompt = buildCombinedLayerPrompt(cameraLayerPresets);
       const queueItem = {
         id: Date.now().toString() + '-layer-comb',
         imageBase64: combinedBase64,
@@ -2921,7 +2876,6 @@ function applyCameraMultiPresets() {
   }
 
   cameraSelectedPresets = [...selectedPresets];
-  cameraMultiManualSelections = {};
   isCameraMultiPresetActive = true;
 
   isMultiPresetMode = false;
@@ -2936,34 +2890,9 @@ function applyCameraMultiPresets() {
   const btn = document.getElementById('camera-multi-preset-toggle');
   if (btn) btn.classList.add('camera-multi-active');
 
-  // If manual options is enabled, gather selections for all selected presets now
-  if (manualOptionsMode && !noMagicMode) {
-    gatherCameraMultiManualSelections(0);
-  } else {
     saveCameraMultiPresets();
     updatePresetDisplay();
   }
-}
-
-// Collect manual option selections one preset at a time before the photo is taken
-async function gatherCameraMultiManualSelections(index) {
-  if (index >= cameraSelectedPresets.length) {
-    // All gathered - save and update display
-    saveCameraMultiPresets();
-    updatePresetDisplay();
-    return;
-  }
-
-  const preset = cameraSelectedPresets[index];
-  const options = parsePresetOptions(preset);
-
-  if (options.length > 0) {
-    const selectedValue = await showManualOptionsModal(preset, options);
-    if (selectedValue !== null) {
-      cameraMultiManualSelections[preset.name] = selectedValue;
-    }
-  }
-  gatherCameraMultiManualSelections(index + 1);
 }
 
 function cancelMultiPresetMode() {
@@ -3009,20 +2938,6 @@ async function applyMultiplePresets() {
 
   cancelMultiPresetMode();
 
-  // If Manual Options mode is on, collect selections for each preset one at a time BEFORE feeding
-  const galleryMultiManualSelections = {};
-  if (manualOptionsMode && !noMagicMode) {
-    for (const preset of presetsToApply) {
-      const options = parsePresetOptions(preset);
-      if (options.length > 0) {
-        const selectedValue = await showManualOptionsModal(preset, options);
-        if (selectedValue !== null) {
-          galleryMultiManualSelections[preset.name] = selectedValue;
-        }
-      }
-    }
-  }
-
   // Now feed each preset one by one with the saved selections
   const overlay = document.createElement('div');
   overlay.className = 'batch-progress-overlay';
@@ -3040,7 +2955,7 @@ async function applyMultiplePresets() {
 
   for (const preset of presetsToApply) {
     try {
-      const manualSelection = galleryMultiManualSelections[preset.name] || null;
+      const manualSelection = null;
       const finalPrompt = getFinalPrompt(preset, manualSelection);
       
       if (typeof PluginMessageHandler !== 'undefined') {
@@ -4930,7 +4845,6 @@ async function deleteCustomPreset() {
   window.viewerLoadedPreset = null;
   isGalleryLayerActive         = false;
   galleryLayerPresets          = [];
-  galleryLayerManualSelections = {};
   const presetHeader = document.getElementById('viewer-preset-header');
   if (presetHeader) presetHeader.textContent = 'NO PRESET LOADED';
   
@@ -5268,47 +5182,6 @@ function loadNoMagicMode() {
   }
 }
 
-// Manual Options Mode Toggle
-function toggleManualOptionsMode() {
-  manualOptionsMode = !manualOptionsMode;
-  
-  // Update the settings menu status label
-  const statusElement = document.getElementById('manual-options-status');
-  if (statusElement) {
-    statusElement.textContent = manualOptionsMode ? 'Enabled' : 'Disabled';
-    statusElement.style.color = manualOptionsMode ? '#4CAF50' : '';
-    statusElement.style.fontWeight = manualOptionsMode ? '600' : '';
-  }
-  
-  // Save to localStorage
-  try {
-    localStorage.setItem(MANUAL_OPTIONS_KEY, JSON.stringify(manualOptionsMode));
-  } catch (err) {
-    console.error('Failed to save Manual Select mode:', err);
-  }
-  
-  // Update the camera footer
-  updateNoMagicFooter();
-  updatePresetDisplay();
-  
-  // Sync the gallery Options button color if it exists
-  const optionsBtn = document.getElementById('options-viewer-button');
-  if (optionsBtn) {
-    if (manualOptionsMode) {
-      optionsBtn.classList.add('enabled');
-    } else {
-      optionsBtn.classList.remove('enabled');
-    }
-  }
-
-  // Sync the camera left carousel Options button
-  const camOptBtn = document.getElementById('cam-options-btn');
-  if (camOptBtn) {
-    if (manualOptionsMode) camOptBtn.classList.add('enabled');
-    else camOptBtn.classList.remove('enabled');
-  }
-}
-
 // 
 // LAYER PRESET SYSTEM
 // Combines multiple presets into ONE merged prompt sent as a single AI request.
@@ -5317,7 +5190,7 @@ function toggleManualOptionsMode() {
 // Build the combined layered prompt from an ordered array of presets.
 // layerPresets[0] = PRIMARY, layerPresets[1..n] = additional layers.
 
-function buildCombinedLayerPrompt(layerPresets, manualSelections = {}) {
+function buildCombinedLayerPrompt(layerPresets) {
   if (!layerPresets || layerPresets.length === 0) return '';
 
   const primaryPreset  = layerPresets[0];
@@ -5348,10 +5221,7 @@ function buildCombinedLayerPrompt(layerPresets, manualSelections = {}) {
 
   // 3. Primary preset options — manual selection if available, otherwise random
   if (primaryPreset.randomizeOptions) {
-    const primaryManual = manualSelections[primaryPreset.name] || null;
-    if (primaryManual !== null) {
-      finalPrompt += '\n\n' + buildSelectedOptionsText(primaryPreset, primaryManual);
-    } else {
+    if (primaryPreset.randomizeOptions) {
       finalPrompt += '\n\n' + buildRandomOptionsText(primaryPreset);
     }
   }
@@ -5364,14 +5234,8 @@ function buildCombinedLayerPrompt(layerPresets, manualSelections = {}) {
     additionalPresets.forEach((preset, index) => {
       const layerText = stripPhotoOpener(preset.message || '');
       finalPrompt += `\nLayer ${index + 1}:\n${layerText}\n`;
-      // Add layer options — manual selection if available, otherwise random
       if (preset.randomizeOptions) {
-        const layerManual = manualSelections[preset.name] || null;
-        if (layerManual !== null) {
-          finalPrompt += buildSelectedOptionsText(preset, layerManual) + '\n';
-        } else {
-          finalPrompt += buildRandomOptionsText(preset) + '\n';
-        }
+        finalPrompt += buildRandomOptionsText(preset) + '\n';
       }
     });
   }
@@ -5530,19 +5394,6 @@ async function applyCameraLayerPresets() {
   const btn = document.getElementById('camera-layer-toggle');
   if (btn) btn.classList.add('layer-active');
 
-  // If Manual Options mode is on, gather selections for each preset now
-  cameraLayerManualSelections = {};
-  if (manualOptionsMode && !noMagicMode) {
-    for (const preset of cameraLayerPresets) {
-      const options = parsePresetOptions(preset);
-      if (options.length > 0) {
-        const selectedValue = await showManualOptionsModal(preset, options);
-        if (selectedValue !== null) {
-          cameraLayerManualSelections[preset.name] = selectedValue;
-        }
-      }
-    }
-  }
 
   // Save to localStorage so it survives a page refresh
   saveCameraLayerPresets();
@@ -5579,7 +5430,6 @@ function clearGalleryLayerState() {
   if (!isGalleryLayerActive) return; // nothing to clear
   isGalleryLayerActive         = false;
   galleryLayerPresets          = [];
-  galleryLayerManualSelections = {};
 }
 
 // GALLERY LAYER 
@@ -5646,7 +5496,6 @@ async function applyGalleryLayerPresets() {
   // Save selections so they persist while the viewer is open
   galleryLayerPresets          = [...presetsToApply];
   isGalleryLayerActive         = true;
-  galleryLayerManualSelections = {};
 
   // Clean up selector UI
   isLayerPresetMode    = false;
@@ -5658,23 +5507,9 @@ async function applyGalleryLayerPresets() {
   if (header) header.textContent = 'Select Preset';
   hidePresetSelector();
 
-  // Gather manual option selections if Manual Options mode is on
-  // and save them to galleryLayerManualSelections so MAGIC button reuses them
-  galleryLayerManualSelections = {};
-  if (manualOptionsMode && !noMagicMode) {
-    for (const preset of presetsToApply) {
-      const options = parsePresetOptions(preset);
-      if (options.length > 0) {
-        const selectedValue = await showManualOptionsModal(preset, options);
-        if (selectedValue !== null) {
-          galleryLayerManualSelections[preset.name] = selectedValue;
-        }
-      }
-    }
-  }
 
   // Build ONE combined prompt from all selected layers
-  const combinedPrompt = buildCombinedLayerPrompt(presetsToApply, galleryLayerManualSelections);
+  const combinedPrompt = buildCombinedLayerPrompt(presetsToApply);
 
   const resizedImageBase64 = await resizeImageForSubmission(image.imageBase64);
 
@@ -5704,7 +5539,6 @@ async function applyGalleryLayerPresets() {
 function saveCameraMultiPresets() {
   try {
     localStorage.setItem(CAMERA_MULTI_PRESET_KEY, JSON.stringify(cameraSelectedPresets.map(p => p.name)));
-    localStorage.setItem(CAMERA_MULTI_SELECTIONS_KEY, JSON.stringify(cameraMultiManualSelections));
   } catch (err) {
     console.error('Failed to save camera multi presets:', err);
   }
@@ -5713,144 +5547,13 @@ function saveCameraMultiPresets() {
 // Clear camera multi-preset state
 function clearCameraMultiPresets() {
   cameraSelectedPresets = [];
-  cameraMultiManualSelections = {};
   isCameraMultiPresetActive = false;
   try {
     localStorage.removeItem(CAMERA_MULTI_PRESET_KEY);
-    localStorage.removeItem(CAMERA_MULTI_SELECTIONS_KEY);
   } catch (err) {}
   const btn = document.getElementById('camera-multi-preset-toggle');
   if (btn) btn.classList.remove('camera-multi-active');
   updatePresetDisplay();
-}
-
-// Load Manual Options Mode from storage
-function loadManualOptionsMode() {
-  try {
-    const saved = localStorage.getItem(MANUAL_OPTIONS_KEY);
-    if (saved !== null) {
-      manualOptionsMode = JSON.parse(saved);
-      
-      const statusElement = document.getElementById('manual-options-status');
-      if (statusElement) {
-        statusElement.textContent = manualOptionsMode ? 'Enabled' : 'Disabled';
-        statusElement.style.color = manualOptionsMode ? '#4CAF50' : '';
-        statusElement.style.fontWeight = manualOptionsMode ? '600' : '';
-      }
-      
-      // updateNoMagicFooter(); - DON'T call updateNoMagicFooter here - it runs before presets load
-    }
-  } catch (err) {
-    console.error('Failed to load Manual Select mode:', err);
-  }
-}
-
-// Show manual options modal and wait for user selection
-// sections = array of { title, options: [{value, label}] }
-// Returns array of selected values (one per section), or null if cancelled
-async function showManualOptionsModal(preset, sections) {
-  // Legacy support: if passed a flat array of options (single modulo preset), wrap it
-  if (sections.length > 0 && !sections[0].hasOwnProperty('title')) {
-    sections = [{ title: 'SELECT', options: sections }];
-  }
-
-  return new Promise((resolve) => {
-    const modal = document.getElementById('manual-options-modal');
-    const list = document.getElementById('manual-options-list');
-    const presetNameEl = document.getElementById('manual-options-preset-name');
-    
-    if (!modal || !list || !presetNameEl) {
-      console.error('Manual select modal elements not found');
-      resolve(null);
-      return;
-    }
-    
-    presetNameEl.textContent = preset.name;
-    list.innerHTML = '';
-    
-    sections.forEach((section, sectionIndex) => {
-      // Section header
-      const header = document.createElement('div');
-      header.style.padding = '10px 12px 4px';
-      header.style.fontWeight = '700';
-      header.style.fontSize = '11px';
-      header.style.letterSpacing = '0.05em';
-      header.style.color = '#aaa';
-      header.style.textTransform = 'uppercase';
-      header.style.borderTop = sectionIndex > 0 ? '1px solid #333' : 'none';
-      header.style.marginTop = sectionIndex > 0 ? '8px' : '0';
-      header.textContent = section.title;
-      list.appendChild(header);
-
-      section.options.forEach((option, optIndex) => {
-        const globalIndex = `s${sectionIndex}_o${optIndex}`;
-        const item = document.createElement('div');
-        item.className = 'style-item';
-        item.style.padding = '10px 12px';
-        item.style.cursor = 'pointer';
-        item.style.display = 'flex';
-        item.style.alignItems = 'center';
-        
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = `manual-option-section-${sectionIndex}`;
-        radio.id = `manual-option-${globalIndex}`;
-        radio.value = option.value;
-        radio.style.marginRight = '10px';
-        
-        const label = document.createElement('label');
-        label.htmlFor = `manual-option-${globalIndex}`;
-        label.textContent = option.label;
-        label.style.cursor = 'pointer';
-        label.style.flex = '1';
-        label.style.fontSize = '12px';
-        
-        item.appendChild(radio);
-        item.appendChild(label);
-        
-        item.onclick = () => { radio.checked = true; };
-        
-        list.appendChild(item);
-      });
-
-      // Auto-select first option in each section
-      const firstRadio = list.querySelector(`input[name="manual-option-section-${sectionIndex}"]`);
-      if (firstRadio) firstRadio.checked = true;
-    });
-    
-    modal.style.display = 'flex';
-    
-    const closeBtn = document.getElementById('close-manual-options');
-    const cancelBtn = document.getElementById('cancel-manual-options');
-    const confirmBtn = document.getElementById('confirm-manual-options');
-    
-    const cleanup = () => {
-      modal.style.display = 'none';
-      if (closeBtn) closeBtn.onclick = null;
-      if (cancelBtn) cancelBtn.onclick = null;
-      if (confirmBtn) confirmBtn.onclick = null;
-    };
-    
-    const handleClose = () => {
-      cleanup();
-      resolve(null);
-    };
-    
-    const handleConfirm = () => {
-      const selections = [];
-      sections.forEach((section, sectionIndex) => {
-        const selected = list.querySelector(`input[name="manual-option-section-${sectionIndex}"]:checked`);
-        selections.push(selected ? parseInt(selected.value) : 0);
-      });
-      cleanup();
-      // If only one section, return single value for backwards compat; else return array
-      resolve(sections.length === 1 ? selections[0] : selections);
-    };
-    
-    if (closeBtn) closeBtn.onclick = handleClose;
-    if (cancelBtn) cancelBtn.onclick = handleClose;
-    if (confirmBtn) confirmBtn.onclick = handleConfirm;
-  });
 }
 
 function updateNoMagicFooter() {
@@ -5859,10 +5562,6 @@ function updateNoMagicFooter() {
   if (noMagicMode) {
     if (statusElement) {
       statusElement.textContent = '⚡ NO MAGIC MODE';
-    }
-  } else if (manualOptionsMode) {
-    if (statusElement) {
-      statusElement.textContent = '🎯 MANUALLY SELECT';
     }
   } else {
     updatePresetDisplay();
@@ -6185,7 +5884,7 @@ const TOUR_STEPS = [
   { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the MULTI button at the bottom of the screen, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
   { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
   { section: 'Special Modes', title: '📑 Layer presets:', body: 'Combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
-  { section: 'Special Modes', title: '📝 Master and 🎛️ Options', body: 'Located below the Menu button on the left side within a carousel. The MASTER button accesses Master Prompt settings. The OPTIONS button toggles Manually Select Options mode. Both Glow green when enabled.' },
+  { section: 'Special Modes', title: '📝 Master Prompt', body: 'Located below the Menu button on the left side within a carousel. The MASTER button accesses Master Prompt settings.' },
   { section: 'Gallery', title: '🖼️ Gallery Activities', body: 'Within the gallery there are thumbnails of captured images. You can either select multiple images to apply a preset, or select a single image to either edit, export or apply one or several presets.' },
   { section: 'Uploading Images', title: '📥 Importing External Images', body: 'In the gallery, you may also bring any image from the web into the gallery using a QR code. Upload the image to catbox.moe, copy the direct link, and generate a QR code at qr-code-generator.com.' },
   { section: 'Uploading Images', title: '📷 Scanning the QR Code', body: 'In the gallery, press Import then Scan QR Code. Point your R1 camera at the QR code and wait. The image will be automatically saved to your gallery.' },
@@ -6198,7 +5897,7 @@ const TOUR_STEPS = [
   { section: 'Gallery', title: '🎨 Applying Presets to Single Image', body: 'After clicking on a single image, Tap LOAD or MULTI to transform a saved image. Click twice on a preset to apply to the image. You can stack multiple transformations. You may also layer up to five presets.' },
   { section: 'Gallery', title: '🏷️ Preset Header', body: 'At the very top of the image viewer a header shows the name of the currently loaded preset. Tap the header to hear the preset name and description.' },
   { section: 'Gallery', title: '🗑️ Delete Button', body: 'The delete button is on the top-left corner of the single image viewer.' },
-  { section: 'Gallery', title: '🎠 Left Carousel', body: 'MASTER and OPTIONS buttons are located below the delete button and are visible by default (Single click (default) screen to hide-this may be adjusted in settings). The MASTER button toggles Master Prompt and OPTIONS button toggles Manually Select Options mode.' },
+  { section: 'Gallery', title: '🎠 Left Carousel', body: 'The MASTER button is located below the delete button and is visible by default (Single click (default) screen to hide — this may be adjusted in settings). It toggles Master Prompt mode.' },
   { section: 'Gallery', title: '🎠 Right Carousel', body: 'The right side carousel has three buttons — ✏️ EDIT which opens the image editor, 📤 EXPORT which uploads to gofile.io, and 📑 LAYER which combines presets to single image. Single click (default) screen to hide the buttons. This may be adjusted in settings' },
   { section: 'Gallery', title: '⬇️ Bottom Bar Buttons', body: 'Four buttons on the bottom of image viewer. PROMPT opens editor. LOAD opens preset selector. MULTI opens multi-preset selector. MAGIC transforms image using the loaded preset, or randomly if nothing is loaded.' },
   { section: 'Gallery', title: '📤 Export to gofile.io', body: 'Tapping EXPORT in the right carousel. You get a QR code with a link that expires after 24 hours. Most useful in No Magic Mode.' },
@@ -6214,7 +5913,6 @@ const TOUR_STEPS = [
   { section: 'Settings', title: '👁️ Visible Presets', body: 'Choose which imported presets appear in your menus. Select All, deselect individually, or remove all. Category tags show at the bottom when a preset is highlighted.' },
   { section: 'Settings', title: '🔨 Preset Builder', body: 'Build your own custom AI presets. Choose a template, add chips for quality and style, enable random options with single or multi-selection groups, add critical rules, then save. Also accessible directly from the main menu plus (+) button.' },
   { section: 'Settings', title: '🚫 No Magic Mode', body: 'Disables AI processing and works as a regular camera. Photos save only to the plugin gallery, not to the rabbit hole or magic gallery.' },
-  { section: 'Settings', title: '🎛️ Manually Select Options Mode', body: 'When enabled and you choose a preset with options, a popup asks you to pick which option to use rather than a randomized option. Can also be toggled from the OPTIONS button inside the image viewer or on the main camera screen.' },
   { section: 'Settings', title: '📥 Import Presets (Starting Style)', body: 'You begin with two unlocked presets-Caricature and Impressionism.  Import them from the Import Presets section to capture photos and begin the fun journey of unlocking your imported artistic library.' },
   { section: 'Settings', title: '📥 Import Presets (Import Art)', body: 'Browse our external library in Settings. Check individual unlocked styles or use the All checkmark to select all  presets to import (assuming you have the credits).' },
   { section: 'Settings', title: '📥 Import Presets (Unlocking Presets)', body: 'Imported styles first appear locked. To unlock one, you need a credit. Take a photo or reprompt in the gallery once with any preset you already own to get one credit. You only get one credit per unique preset!' },
@@ -7317,7 +7015,7 @@ addToGallery(dataUrl);
     const presetsToApply = [...cameraSelectedPresets];
     for (let i = 0; i < presetsToApply.length; i++) {
       const preset = presetsToApply[i];
-      const manualSelection = cameraMultiManualSelections[preset.name] || null;
+      const manualSelection = null;
       const queueItem = {
         id: Date.now().toString() + '-mp' + i,
         imageBase64: dataUrl,
@@ -7349,7 +7047,7 @@ addToGallery(dataUrl);
   // Merges all selected layer presets into ONE combined prompt and sends once.
 
   if (isCameraLayerActive && cameraLayerPresets.length > 0 && !isRandomMode) {
-    const combinedPrompt = buildCombinedLayerPrompt(cameraLayerPresets, cameraLayerManualSelections);
+    const combinedPrompt = buildCombinedLayerPrompt(cameraLayerPresets);
     const queueItem = {
       id: Date.now().toString() + '-layer',
       imageBase64: dataUrl,
@@ -7397,45 +7095,7 @@ addToGallery(dataUrl);
   updateQueueDisplay();
   
   // If Manual Options is enabled and preset has options, show modal
-  if (manualOptionsMode && !noMagicMode) {
-    const options = parsePresetOptions(currentPreset);
-    
-    if (options.length > 0) {
-      // Show modal and wait for selection
-      showManualOptionsModal(currentPreset, options).then((selectedValue) => {
-        if (selectedValue !== null) {
-          // User selected an option - update the queue item
-          const queueIndex = photoQueue.findIndex(item => item.id === queueItem.id);
-          if (queueIndex !== -1) {
-            photoQueue[queueIndex].manualSelection = selectedValue;
-            saveQueue();
-          }
-          
-          // Trigger sync
-          if (isOnline && !noMagicMode) {
-            statusElement.textContent = 'Photo saved! Uploading...';
-            if (!isSyncing) {
-              syncQueuedPhotos();
-            }
-          } else {
-            statusElement.textContent = `Photo queued (${photoQueue.length} in queue)`;
-          }
-        } else {
-          // User cancelled - remove from queue
-          const queueIndex = photoQueue.findIndex(item => item.id === queueItem.id);
-          if (queueIndex !== -1) {
-            photoQueue.splice(queueIndex, 1);
-            saveQueue();
-            updateQueueDisplay();
-          }
-          statusElement.textContent = 'Photo not sent - cancelled';
-        }
-      });
-      return; // Exit early - modal will handle sync
-    }
-  }
   
-  // No manual options needed - proceed normally
   if (isOnline) {
     const message = noMagicMode 
       ? 'Photo saved!'
@@ -8068,8 +7728,6 @@ function updatePresetDisplay() {
         statusElement.textContent = `🎞️ MULTI PRESETS (${cameraSelectedPresets.length})`;
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
         statusElement.textContent = `📑 LAYER (${cameraLayerPresets.length} presets)`;
-    } else if (manualOptionsMode) {
-        statusElement.textContent = `🎯 MANUALLY SELECT | Style: ${cleanName}`;
     } else {
         statusElement.textContent = `Style: ${cleanName}`;
     }
@@ -8849,17 +8507,6 @@ function clearPresetHistory(presetName) {
 function clearAllHistory() {
   selectionHistory = {};
   saveSelectionHistory();
-}
-
-// Check if Manual Options can be used based on current mode
-function canUseManualOptions() {
-  if (noMagicMode) {
-    return {
-      allowed: false,
-      reason: 'Manual Select disabled: No Magic Mode is active'
-    };
-  }
-
 }
 
 function editStyle(index) {
@@ -10781,12 +10428,6 @@ document.addEventListener('touchend', () => {
   if (noMagicToggleBtn) {
     noMagicToggleBtn.addEventListener('click', toggleNoMagicMode);
   }
-
-  const manualOptionsToggleBtn = document.getElementById('manual-options-toggle-button');
-  if (manualOptionsToggleBtn) {
-    manualOptionsToggleBtn.addEventListener('click', toggleManualOptionsMode);
-  }
-
   const tutorialBtn = document.getElementById('tutorial-button');
   if (tutorialBtn) {
     tutorialBtn.addEventListener('click', showTutorialSubmenu);
@@ -11050,7 +10691,6 @@ const result = await presetImporter.import();
   }
 
   loadNoMagicMode();
-  loadManualOptionsMode();
   loadImportResolution();
 
   const resetBtn = document.getElementById('reset-button');
@@ -11308,18 +10948,6 @@ const result = await presetImporter.import();
       
       // Use the proper function to show master prompt (loads values correctly)
       showMasterPromptSubmenu();
-    });
-  }
-  
-  const optionsViewerBtn = document.getElementById('options-viewer-button');
-  if (optionsViewerBtn) {
-    optionsViewerBtn.addEventListener('click', () => {
-      toggleManualOptionsMode();
-      if (manualOptionsMode) {
-        optionsViewerBtn.classList.add('enabled');
-      } else {
-        optionsViewerBtn.classList.remove('enabled');
-      }
     });
   }
 
@@ -12364,14 +11992,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Sync enabled state of MP and Options buttons on load
   function syncLeftCamBtns() {
     const mpBtn = document.getElementById('cam-master-prompt-btn');
-    const optBtn = document.getElementById('cam-options-btn');
     if (mpBtn) {
       if (masterPromptEnabled) mpBtn.classList.add('enabled');
       else mpBtn.classList.remove('enabled');
-    }
-    if (optBtn) {
-      if (manualOptionsMode) optBtn.classList.add('enabled');
-      else optBtn.classList.remove('enabled');
     }
   }
 
@@ -12391,16 +12014,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Options toggle button — toggles manualOptionsMode immediately
-  const camOptBtn = document.getElementById('cam-options-btn');
-  if (camOptBtn) {
-    camOptBtn.addEventListener('click', () => {
-      toggleManualOptionsMode();
-      // Sync this button's color
-      if (manualOptionsMode) camOptBtn.classList.add('enabled');
-      else camOptBtn.classList.remove('enabled');
-    });
-  }
 
   // Initial sync after a brief delay to ensure state is loaded
   setTimeout(syncLeftCamBtns, 200);

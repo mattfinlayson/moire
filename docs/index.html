@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Moire</title>
-  <script type="module" crossorigin src="./assets/main-4Hz70Xkc.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-DHD-xr6V.css">
+  <script type="module" crossorigin src="./assets/main-YhXeK3eb.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-Du7ivt4a.css">
 </head>
 <body>
     <div id="app">
@@ -44,10 +44,6 @@
                 <button id="cam-master-prompt-btn" class="left-cam-btn" title="Master Prompt">
                     <span class="button-icon">📝</span>
                     <span class="button-label">MASTER</span>
-                </button>
-                <button id="cam-options-btn" class="left-cam-btn" title="Toggle Options">
-                    <span class="button-icon">🎛️</span>
-                    <span class="button-label">OPTIONS</span>
                 </button>
             </div>
         </div>
@@ -179,14 +175,6 @@
                         <button id="no-magic-toggle-button" class="menu-section-button">
                             <span class="menu-section-title">No Magic Mode</span>
                             <span id="no-magic-status" class="menu-section-value">Disabled</span>
-                        </button>
-                    </div>
-
-                    <!-- Manual Options Toggle -->
-                    <div class="menu-section">
-                        <button id="manual-options-toggle-button" class="menu-section-button">
-                            <span class="menu-section-title">Manually Select Options</span>
-                            <span id="manual-options-status" class="menu-section-value">Disabled</span>
                         </button>
                     </div>
 
@@ -570,7 +558,7 @@
                                 <li>Specify "photorealistic" or artistic style</li>
                                 <li>Consider small screen clarity</li>
                                 <li><strong>Random Selection:</strong> Use 🎲 templates for variety across photos</li>
-                                <li><strong>Single Selection:</strong> Enable Random Options and choose Single Selection to add a list of options — one will be randomly picked each time the preset runs or you can manually select the options if manually select options is enabled in the settings</li>
+                                <li><strong>Single Selection:</strong> Enable Random Options and choose Single Selection to add a list of options — one will be randomly picked each time the preset runs.</li>
                                 <li><strong>Multi-Selection:</strong> Use Multi-Selection to create multiple option groups — one option is randomly or manually picked from each group, allowing combinations across categories (e.g. style + setting + mood)</li>
                             </ul>
                         </div>
@@ -663,7 +651,7 @@
                    <div id="section-ai-presets" class="tutorial-section">
                         <h4 class="tutorial-heading">✨ AI Presets</h4>
                         <p class="tutorial-text">
-                            Browse <span id="tutorial-preset-count">800</span> unique and fun AI presets! We are constantly updating and adding presets. Scroll through styles like Impressionism, Cyberpunk, Anime Art, Watercolor, Caricature, and much more. The current preset name appears at the bottom of the main screen. Each preset transforms your photo with a specific artistic style or effect. Some presets are created to truly randomize(using the RonDom Method©) options within the preset and you can also enable MANUALLY SELECT OPTIONS to select which of the options you want to create in the final image.<br>
+                            Browse <span id="tutorial-preset-count">800</span> unique and fun AI presets! We are constantly updating and adding presets. Scroll through styles like Impressionism, Cyberpunk, Anime Art, Watercolor, Caricature, and much more. The current preset name appears at the bottom of the main screen. Each preset transforms your photo with a specific artistic style or effect. Some presets are created to truly randomize(using the RonDom Method©) options within the preset.<br>
                         <strong>🔊 Hear Preset Info:</strong> When browsing presets in the IMPORT PRESETS menu, tap any preset ONCE to hear its description read aloud. Use the 🔊 mute button in the header to toggle audio on or off.
 </p>
                     </div>
@@ -676,10 +664,10 @@
 </h5>
                         <p class="tutorial-text">
                             <strong>🎲 Random Mode:</strong> Surprises you with a random preset for each photo, selecting from favorites only if any favorites are selected. If no favorites are selected, it selects from all visible presets.<br>
-                            <strong>🎞️ Multi Preset:</strong> Select up to 20 presets to apply to a single photo in sequence. Tap the MULTI button to open the preset selector. Choose your presets and tap Apply Selected. When you take a photo, all selected presets are queued and sent one by one with a 3 second interval between each. Cannot be used with Random Mode or No Magic Mode. If Manually Select Options is enabled, you will be prompted to choose options for each selected preset before the photo is taken. Multi preset is a one-shot mode — it resets automatically after all presets are sent.<br>
+                            <strong>🎞️ Multi Preset:</strong> Select up to 20 presets to apply to a single photo in sequence. Tap the MULTI button to open the preset selector. Choose your presets and tap Apply Selected. When you take a photo, all selected presets are queued and sent one by one with a 3 second interval between each. Cannot be used with Random Mode or No Magic Mode. Multi preset is a one-shot mode — it resets automatically after all presets are sent.<br>
                             <strong>🖼️🖼️ Combine images:</strong> Works with either a selected preset or by speaking your preset. Take a picture of two images to combine them to feed to r1 thereby creating AI generated images from two images. Only works with random mode or multi-select presets mode in main camera screen.<br>
-                            <strong>📑 Layer presets:</strong> Select up to 5 presets to combine and apply to a photo. Tap the 📑 LAYER button in the carousel to open the preset selector. Choose your presets starting with the primary (or dominant) layer. Then select up to 4 more presets to add as layers to that primary preset. Once you finish selecting, tap Apply Selected. Cannot be used with Random Mode or No Magic Mode. If Manually Select Options is enabled, you will be prompted once to choose options for each selected preset before the photo is taken. Once Layer is enabled, it will continue applying same chosen layers with selected options until it is disabled.<br>
-                            <strong>📝 MASTER and 🎛️ OPTIONS Buttons (Left Carousel):</strong> Below the Menu (☰) button on the left side within a carousel(which also includes the MENU (☰) and GALLERY (🖼️) Buttons). The MASTER button (📝) accesses Master Prompt settings. Glows green when enabled. The OPTIONS (🎛️) button toggles Manually Select Options mode on or off. Glows green when enabled. All the camera buttons (except for the switch camera (📷) button) are in carousels and are visible by default. However, you can hide them (except for the switch camera (📷) button) by single clicking on the main camera screen to hide/reveal buttons. This may be adjusted in the Button Settings subsection within settings.<br><br>
+                            <strong>📑 Layer presets:</strong> Select up to 5 presets to combine and apply to a photo. Tap the 📑 LAYER button in the carousel to open the preset selector. Choose your presets starting with the primary (or dominant) layer. Then select up to 4 more presets to add as layers to that primary preset. Once you finish selecting, tap Apply Selected. Cannot be used with Random Mode or No Magic Mode. Once Layer is enabled, it will continue applying same chosen layers with selected options until it is disabled.<br>
+                            <strong>📝 MASTER Button (Left Carousel):</strong> Below the Menu (☰) button on the left side within a carousel (which also includes the MENU (☰) and GALLERY (🖼️) Buttons). The MASTER button (📝) accesses Master Prompt settings. Glows green when enabled. All the camera buttons (except for the switch camera (📷) button) are in carousels and are visible by default. However, you can hide them (except for the switch camera (📷) button) by single clicking on the main camera screen to hide/reveal buttons. This may be adjusted in the Button Settings subsection within settings.<br><br>
                         </p>
                     </div>
 
@@ -703,7 +691,7 @@
 
                             <strong>Delete (🗑️) and Close (×):</strong> Delete button, located at the top-left, deletes the selected image, Close (x) button, located at the top-right, closes the single image viewer. <br><br>
 
-                            <strong>Master and Options Buttons:</strong> Located below the delete button on the left side within a carousel. The MASTER button accesses Master Prompt settings. Glows green when enabled. The OPTIONS button toggles Manually Select Options mode on or off. Glows green when enabled. These buttons are visible by default. However, you can hide them by single clicking the screen. Single click again to reveal them. This is the default setting and may be adjusted in the Button Settings submenu within the settings<br><br>
+                            <strong>Master Button:</strong> Located below the delete button on the left side within a carousel. The MASTER button accesses Master Prompt settings. Glows green when enabled. These buttons are visible by default. However, you can hide them by single clicking the screen. Single click again to reveal them. This is the default setting and may be adjusted in the Button Settings submenu within the settings<br><br>
 
                             <strong>Edit and Export Images:</strong> The image viewer screen right carousel contains three buttons — ✏️ EDIT (opens the image editor), 📤 EXPORT (uploads to gofile.io), and 📑 LAYER (combine and apply multiple presets to a single image). Select primary preset and then add up to 4 more layers (5 in all). Single click (default) on the image viewer screen to hide the carousels.<br><br>
 
@@ -794,7 +782,6 @@
 <strong>Visible Presets:</strong> Select the imported presets you want to see in preset menus. Default all. Can select all, remove individually or remove all (the Ron setting). Each preset has categories indicated at the bottom of the visible preset menu.<br>
                             <strong>Preset Builder:</strong> Made to follow a sequence. Click return to go to next selection. Select prompt templates and chips to help you create new and exciting presets. Categories must be separated by commas. You can also create multiple option presets with single or multi-selection! This is a very useful tool that includes prompting tips. You can access the Preset Builder from Settings, or directly from the main menu by tapping the <strong>+</strong> button in the menu header.<br>
                             <strong>No Magic Mode:</strong> Use as a regular camera without AI processing. Photos will only save in the gallery. Photos will not save to rabbit hole or magic gallery. This setting does not affect prompting in gallery. You can send No Magic Mode photos saved in your gallery to the rabbit hole by prompting it with a preset. You may also upload them to gofile.io using the export button in the right carousel of the single image viewer in the gallery.<br>
-                            <strong>Manually Select Options Mode:</strong> Enable/Disable. When enabled, if you choose a preset with options, a modal will appear asking you to pick from one of the options in the preset. Only this option is fed as the final prompt for generating the magical image. This setting works with Randomizer. The manually select options mode may be toggled from the gallery by pressing the OPTIONS button in the gallery<br>
                             <strong>Import Resolution:</strong> Select import resolution for external images imported through the gallery.<br>
                             <strong>Reset Database:</strong> Nuclear Option. Only imported presets remain. All custom work deleted.<br>
                             <strong>⚙️ Button Settings:</strong> The main camera screen and gallery image viewer screen carousel buttons are default solid and black. In this section, you may select different colors for buttons and text in the main camera screen and in the gallery image viewer screen. You may also select opacity (default solid) and set how many taps to hide/reveal the buttons in each section under their appropriate tab.<br>
@@ -1008,7 +995,6 @@ All of the presets are optimized to avoid "camera ran dry" or "content filter" i
         <div id="viewer-left-carousel" class="viewer-left-carousel">
             <div class="viewer-left-carousel-track">
                 <button id="mp-viewer-button" class="viewer-left-carousel-btn">📝<br><span style="font-size:2.5vw;line-height:1;color:#fff;margin-top:1.5vw;display:block;">MASTER</span></button>
-<button id="options-viewer-button" class="viewer-left-carousel-btn">🎛️<br><span style="font-size:2.5vw;line-height:1;color:#fff;margin-top:1.5vw;display:block;">OPTIONS</span></button>
             </div>
         </div>
         <!-- Right-side carousel: Edit and Export -->
@@ -1244,28 +1230,6 @@ All of the presets are optimized to avoid "camera ran dry" or "content filter" i
           </div>
         </div>
     </div>
-    <!-- Manual Options Modal -->
-    <div id="manual-options-modal" class="styles-menu" style="display: none;">
-        <div class="styles-menu-content">
-            <div class="styles-menu-header">
-                <h2>Select Option(s)</h2>
-                <button id="close-manual-options" class="close-button">×</button>
-            </div>
-            <div class="styles-menu-scroll-container">
-                <div style="padding: 10px; color: #aaa; font-size: 11px; border-bottom: 1px solid #333; margin-bottom: 10px;">
-                    <strong id="manual-options-preset-name"></strong>
-                </div>
-                <div class="menu-list" id="manual-options-list"></div>
-            </div>
-            <div style="display: flex; gap: 5px; padding: 10px; background: #1a1a1a; border-top: 1px solid #333;">
-                <button id="confirm-manual-options" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer;">
-                    Send
-                </button>
-                <button id="cancel-manual-options" style="flex: 1; padding: 10px; background: #666; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer;">
-                    Cancel
-                </button>
-            </div>
-        </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
