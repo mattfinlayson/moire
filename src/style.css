@@ -133,45 +133,6 @@ html, body {
     z-index: 100;
 }
 
-/* Toast notification for roulette mode */
-#roulette-toast {
-    position: fixed;
-    bottom: 25%;
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: #fff;
-    padding: 3vw 6vw;
-    border-radius: 50px;
-    font-size: 4.5vw;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 2vw;
-    z-index: 500;
-    opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 107, 0, 0.3);
-    border: 2px solid rgba(255, 107, 0, 0.5);
-    pointer-events: none;
-}
-
-#roulette-toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-}
-
-#roulette-toast .toast-icon {
-    font-size: 6vw;
-}
-
-#roulette-toast .toast-text {
-    max-width: 60vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Style Name Reveal */
 .style-reveal {
     position: absolute;
@@ -1456,147 +1417,6 @@ button:disabled {
     margin-bottom: 0;
 }
 
-/* Burst settings */
-.burst-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 3vh;
-}
-
-.burst-setting-item {
-    display: flex;
-    flex-direction: column;
-    gap: 1vh;
-}
-
-.burst-setting-item label {
-    font-size: 4vw;
-    color: #ccc;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.burst-setting-item input[type="range"] {
-    width: 100%;
-    height: 6vw;
-    -webkit-appearance: none;
-    appearance: none;
-    background: #2a2a2a;
-    outline: none;
-    border-radius: 3vw;
-}
-
-.burst-setting-item input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 8vw;
-    height: 8vw;
-    background: #FE5F00;
-    cursor: pointer;
-    border-radius: 50%;
-    border: 2px solid #fff;
-}
-
-.burst-setting-item input[type="range"]::-moz-range-thumb {
-    width: 8vw;
-    height: 8vw;
-    background: #FE5F00;
-    cursor: pointer;
-    border-radius: 50%;
-    border: 2px solid #fff;
-}
-
-.burst-speed-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 3vw;
-    color: #999;
-    margin-top: -1vh;
-}
-
-.timer-repeat-interval-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 3vw;
-    color: #999;
-    margin-top: -1vh;
-}
-
-#burst-count-value,
-#burst-speed-value {
-    color: #FE5F00;
-    font-weight: bold;
-}
-
-/* Timer Countdown Display */
-.timer-countdown {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.9);
-    color: #FE5F00;
-    font-size: 12vw;
-    font-weight: bold;
-    padding: 4vw;
-    border-radius: 50%;
-    text-align: center;
-    z-index: 200;
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border: 4px solid #FE5F00;
-    box-shadow: 0 8px 32px rgba(254, 95, 0, 0.7);
-    width: 40vw;
-    height: 40vw;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    overflow: hidden;
-    word-break: break-all;
-}
-
-#timer-countdown-text {
-    max-width: 100%;
-    max-height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: inherit;
-    line-height: 1;
-}
-
-.timer-countdown.countdown-fade-in {
-    animation: countdownFadeIn 0.5s ease-out;
-}
-
-.timer-countdown.countdown-fade-out {
-    animation: countdownFadeOut 0.5s ease-out;
-}
-
-@keyframes countdownFadeIn {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5);
-    }
-    100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-@keyframes countdownFadeOut {
-    0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1.2);
-    }
-}
-
 /* Gallery button */
 .gallery-button {
     position: absolute;
@@ -1874,24 +1694,6 @@ button:disabled {
     background: rgba(156, 39, 176, 0.7);
     color: #fff;
     border-color: rgba(156, 39, 176, 0.9);
-}
-
-.mode-button[data-mode="motion"].active {
-    background: rgba(254, 95, 0, 0.7);
-    color: #fff;
-    border-color: rgba(254, 95, 0, 0.9);
-}
-
-.mode-button[data-mode="burst"].burst-active {
-    background: rgba(76, 175, 80, 0.7);
-    color: #fff;
-    border-color: rgba(76, 175, 80, 0.9);
-}
-
-.mode-button[data-mode="timer"].timer-active {
-    background: rgba(33, 150, 243, 0.7);
-    color: #fff;
-    border-color: rgba(33, 150, 243, 0.9);
 }
 
 .mode-button[data-mode="camera-multi"].camera-multi-active {
@@ -2779,7 +2581,7 @@ button:disabled {
     font-size: 4vw;
 }
 
-/* Menu section button (for resolution and burst) */
+/* Menu section button */
 .menu-section-button {
     width: 100%;
     padding: 2vw;
@@ -4754,80 +4556,92 @@ button:disabled {
     aspect-ratio: 1 / 1;
 }
 
-/* ============================================================
-   Roulette Modal
-   ============================================================ */
-
-.roulette-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 2500;
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+/* Generic setting item layout (used by button settings, preset builder, etc.) */
+.burst-setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
 }
 
-.roulette-content {
-    width: 92%;
-    max-height: 96%;
+.burst-setting-item label {
+    font-size: 4vw;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.burst-setting-item input[type="range"] {
+    width: 100%;
+    height: 6vw;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #2a2a2a;
+    outline: none;
+    border-radius: 3vw;
+}
+
+.burst-setting-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 8vw;
+    height: 8vw;
+    background: #FE5F00;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.burst-setting-item input[type="range"]::-moz-range-thumb {
+    width: 8vw;
+    height: 8vw;
+    background: #FE5F00;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+/* ============================================================
+   Picker Overlay — pre-capture preset selection
+   ============================================================ */
+
+.picker-overlay {
+    position: absolute;
+    bottom: 12vw;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2vw;
-    padding: 2vw 0;
+    padding: 3vw 4vw;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 50;
+    pointer-events: auto;
 }
 
-.roulette-header {
-    text-align: center;
-}
-
-.roulette-header h3 {
-    font-size: 5vw;
-    color: #FE5F00;
-    margin: 0;
-    letter-spacing: 0.5vw;
-    text-shadow: 0 0 10px rgba(254, 95, 0, 0.5);
-}
-
-/* Main slot — large primary tile */
-.roulette-main-slot {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
-
-.roulette-tile {
-    background-color: #1a1a1a;
-    border: 2px solid rgba(255, 255, 255, 0.15);
+.picker-primary {
+    width: 50vw;
+    height: 15vw;
+    background: #1a1a1a;
+    border: 2px solid #333;
     border-radius: 2vw;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
     -webkit-tap-highlight-color: transparent;
     overflow: hidden;
 }
 
-.roulette-tile:active {
-    transform: scale(0.96);
+.picker-primary.selected {
+    border-color: #FE5F00;
 }
 
-.roulette-tile.primary {
-    width: 60vw;
-    height: 28vw;
-    border-color: rgba(254, 95, 0, 0.5);
-    box-shadow: 0 0 20px rgba(254, 95, 0, 0.2);
-}
-
-.roulette-tile.primary .roulette-name {
+.picker-primary .picker-name {
     font-size: 4.5vw;
     font-weight: bold;
     color: #fff;
@@ -4838,21 +4652,32 @@ button:disabled {
     max-width: 100%;
 }
 
-/* 2x2 alt grid */
-.roulette-alts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2vw;
-    width: 100%;
-    padding: 0 4vw;
-    box-sizing: border-box;
+.picker-alts {
+    display: flex;
+    gap: 3vw;
+    justify-content: center;
 }
 
-.roulette-tile.alt {
-    height: 18vw;
+.picker-alt {
+    width: 30vw;
+    height: 10vw;
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 2vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
 }
 
-.roulette-tile.alt .roulette-name {
+.picker-alt.selected {
+    border-color: #FE5F00;
+}
+
+.picker-alt .picker-name {
     font-size: 3.5vw;
     color: #ccc;
     padding: 1.5vw;
@@ -4862,98 +4687,3 @@ button:disabled {
     max-width: 100%;
 }
 
-/* Footer */
-.roulette-footer {
-    display: flex;
-    justify-content: center;
-}
-
-.roulette-reroll-btn {
-    background: linear-gradient(135deg, #FE5F00 0%, #FF8C00 100%);
-    color: #000;
-    font-weight: bold;
-    font-size: 4vw;
-    padding: 2vw 6vw;
-    border: none;
-    border-radius: 3vw;
-    cursor: pointer;
-    min-height: 36px;
-    box-shadow: 0 2px 12px rgba(254, 95, 0, 0.4);
-    transition: transform 0.1s, box-shadow 0.15s;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.roulette-reroll-btn:active {
-    transform: scale(0.94);
-    box-shadow: 0 1px 6px rgba(254, 95, 0, 0.6);
-}
-
-/* Selection glow */
-.roulette-tile.selected {
-    border-color: #FE5F00;
-    box-shadow: 0 0 24px rgba(254, 95, 0, 0.7);
-    animation: rouletteGlow 0.4s ease-out;
-}
-
-@keyframes rouletteGlow {
-    0% {
-        box-shadow: 0 0 0 rgba(254, 95, 0, 0);
-        border-color: rgba(255, 255, 255, 0.15);
-    }
-    50% {
-        box-shadow: 0 0 30px rgba(254, 95, 0, 0.9);
-        border-color: #FF8C00;
-    }
-    100% {
-        box-shadow: 0 0 24px rgba(254, 95, 0, 0.7);
-        border-color: #FE5F00;
-    }
-}
-
-/* Shuffle animation */
-.roulette-content.shuffling .roulette-tile {
-    animation: rouletteShuffle 0.5s ease-in-out;
-}
-
-.roulette-content.shuffling .roulette-tile.primary {
-    animation-delay: 0s;
-}
-
-.roulette-content.shuffling .roulette-tile.alt:nth-child(1) {
-    animation-delay: 0.05s;
-}
-
-.roulette-content.shuffling .roulette-tile.alt:nth-child(2) {
-    animation-delay: 0.1s;
-}
-
-.roulette-content.shuffling .roulette-tile.alt:nth-child(3) {
-    animation-delay: 0.15s;
-}
-
-.roulette-content.shuffling .roulette-tile.alt:nth-child(4) {
-    animation-delay: 0.2s;
-}
-
-@keyframes rouletteShuffle {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    25% {
-        transform: scale(0.9);
-        opacity: 0.3;
-    }
-    50% {
-        transform: scale(0.92);
-        opacity: 0.5;
-    }
-    75% {
-        transform: scale(0.88);
-        opacity: 0.3;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}

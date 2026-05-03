@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Moire</title>
-  <script type="module" crossorigin src="./assets/main-DIf-Wglb.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/main-vkYLdfSb.css">
+  <script type="module" crossorigin src="./assets/main-B7hK2cNv.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-DHD-xr6V.css">
 </head>
 <body>
     <div id="app">
@@ -17,6 +17,15 @@
             <video id="video" autoplay playsinline muted></video>
             <img id="captured-image" style="display: none;" alt="Captured photo">
             <canvas id="canvas" style="display: none;"></canvas>
+            <div id="picker-overlay" class="picker-overlay" style="display: none;">
+                <div id="picker-primary" class="picker-primary selected">
+                    <span class="picker-name">...</span>
+                </div>
+                <div class="picker-alts">
+                    <div class="picker-alt" data-index="0"><span class="picker-name">...</span></div>
+                    <div class="picker-alt" data-index="1"><span class="picker-name">...</span></div>
+                </div>
+            </div>
         </div>
         <p id="status" class="status-text" style="display: none;">Initializing camera...</p>
         <button id="reset-button" class="reset-button" style="display: none;">New Photo</button>
@@ -49,11 +58,6 @@
             <span id="style-reveal-text"></span>
         </div>
         
-        <!-- Timer Countdown -->
-        <div id="timer-countdown" class="timer-countdown" style="display: none;">
-            <span id="timer-countdown-text"></span>
-        </div>
-        
         <!-- Connection Status -->
         <div id="connection-status" class="connection-status online" style="display: none;">
             <span id="connection-text">Online</span>
@@ -73,29 +77,6 @@
         <button id="sync-button" class="sync-button" title="Sync Queued Photos" style="display: none;">
             🔄 Sync (<span id="sync-count">0</span>)
         </button>
-        
-        <!-- Roulette Modal -->
-        <div id="roulette-modal" class="roulette-modal" style="display: none;">
-            <div class="roulette-content">
-                <div class="roulette-header">
-                    <h3>🎰 ROUTLETTE</h3>
-                </div>
-                <div class="roulette-main-slot">
-                    <div id="roulette-primary" class="roulette-tile primary">
-                        <span class="roulette-name">???</span>
-                    </div>
-                </div>
-                <div class="roulette-alts-grid">
-                    <div class="roulette-tile alt" data-index="0"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="1"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="2"><span class="roulette-name">???</span></div>
-                    <div class="roulette-tile alt" data-index="3"><span class="roulette-name">???</span></div>
-                </div>
-                <div class="roulette-footer">
-                    <button id="roulette-reroll-btn" class="roulette-reroll-btn">🎰 Spin Again</button>
-                </div>
-            </div>
-        </div>
 
         <!-- Unified Menu -->
         <div id="unified-menu" class="styles-menu" style="display: none;">
@@ -304,9 +285,6 @@
         </div>
     </div>
 </div>
-
-        <!-- Motion Detection Submenu -->
-         
 
         <!-- Visible Presets Submenu -->
 <div id="visible-presets-submenu" class="submenu" style="display: none;">
@@ -664,7 +642,7 @@
                     <div id="section-getting-started" class="tutorial-section">
                         <h4 class="tutorial-heading">🚀 Getting Started</h4>
                         <p class="tutorial-text">
-                            Moire is a powerful plugin for the Rabbit r1 that transforms your photos with many AI-powered presets. Point, shoot, and watch your images come to life with artistic styles, effects, and transformations. Customize captured photos to create your own presets or re-prompt captured photos. You can do things you cannot do with regular Magic Camera (eg. zoom in/out, import photos, combine photos, layer presets, re-prompt photos, timer and burst). Moire can also work as a security device with motion detection.
+                            Moire is a powerful plugin for the Rabbit r1 that transforms your photos with many AI-powered presets. Point, shoot, and watch your images come to life with artistic styles, effects, and transformations. Customize captured photos to create your own presets or re-prompt captured photos. You can do things you cannot do with regular Magic Camera (eg. zoom in/out, import photos, combine photos, layer presets, and re-prompt photos).
                         </p>
                     </div>
 
@@ -698,10 +676,7 @@
 </h5>
                         <p class="tutorial-text">
                             <strong>🎲 Random Mode:</strong> Surprises you with a random preset for each photo, selecting from favorites only if any favorites are selected. If no favorites are selected, it selects from all visible presets.<br>
-                            <strong>⏱️ Timer Mode:</strong> Set a countdown (3-10s) and optional repeat intervals<br>
-                            <strong>📸⚡ Burst Mode:</strong> Capture 3-10 photos rapidly (slow/medium/fast)<br>
-                            <strong>👁️ Motion Detection:</strong> Automatically captures when movement is detected. Interval settings for repeat capture. Repeat capture is default. You must uncheck repeat capture to do single capture. Select start delay from 3 seconds to 30 minutes. This mode triggers when you press the eye icon and activates/starts when you press the side button. Motion detection deactivates/stops when you press the eye icon again. The eye pulses if motion detection is triggered.<br>
-                            <strong>🎞️ Multi Preset:</strong> Select up to 20 presets to apply to a single photo in sequence. Tap the 🎞️ MULTI button in the carousel to open the preset selector. Choose your presets and tap Apply Selected. The footer and screen will show MULTI PRESETS while active. When you take a photo, all selected presets are queued and sent one by one with a 3 second interval between each. Works with Timer Mode — multi preset stays active until the timer is turned off. Cannot be used with Burst, Motion Detection, Random Mode, or No Magic Mode. If Manually Select Options is enabled, you will be prompted to choose options for each selected preset before the photo is taken. Multi preset is a one-shot mode — it resets automatically after all presets are sent, unless Timer Mode is active.<br>
+                            <strong>🎞️ Multi Preset:</strong> Select up to 20 presets to apply to a single photo in sequence. Tap the MULTI button to open the preset selector. Choose your presets and tap Apply Selected. When you take a photo, all selected presets are queued and sent one by one with a 3 second interval between each. Cannot be used with Random Mode or No Magic Mode. If Manually Select Options is enabled, you will be prompted to choose options for each selected preset before the photo is taken. Multi preset is a one-shot mode — it resets automatically after all presets are sent.<br>
                             <strong>🖼️🖼️ Combine images:</strong> Works with either a selected preset or by speaking your preset. Take a picture of two images to combine them to feed to r1 thereby creating AI generated images from two images. Only works with random mode or multi-select presets mode in main camera screen.<br>
                             <strong>📑 Layer presets:</strong> Select up to 5 presets to combine and apply to a photo. Tap the 📑 LAYER button in the carousel to open the preset selector. Choose your presets starting with the primary (or dominant) layer. Then select up to 4 more presets to add as layers to that primary preset. Once you finish selecting, tap Apply Selected. Cannot be used with Random Mode or No Magic Mode. If Manually Select Options is enabled, you will be prompted once to choose options for each selected preset before the photo is taken. Once Layer is enabled, it will continue applying same chosen layers with selected options until it is disabled.<br>
                             <strong>📝 MASTER and 🎛️ OPTIONS Buttons (Left Carousel):</strong> Below the Menu (☰) button on the left side within a carousel(which also includes the MENU (☰) and GALLERY (🖼️) Buttons). The MASTER button (📝) accesses Master Prompt settings. Glows green when enabled. The OPTIONS (🎛️) button toggles Manually Select Options mode on or off. Glows green when enabled. All the camera buttons (except for the switch camera (📷) button) are in carousels and are visible by default. However, you can hide them (except for the switch camera (📷) button) by single clicking on the main camera screen to hide/reveal buttons. This may be adjusted in the Button Settings subsection within settings.<br><br>
@@ -815,15 +790,11 @@
                         <p class="tutorial-text">
                             <strong>Resolution:</strong> VGA (640x480) to HD (3264x2448). If you want images to appear in magic gallery, choose lower settings. Higher settings will slow the camera.<br>
                             <strong>Aspect Ratio:</strong> Choose 1:1 square or 16:9 letterbox, or if unchecked neither. Default is neither. Choose an aspect ratio to display the full image, preventing accidental cropping. We strongly recommend selecting an aspect ratio.<br>
-                            <strong>Burst:</strong> Number of photos and capture speed<br>
-                            <!-- <strong>White Balance:</strong> Adjust color temperature of image so white objects appear white and colors realistic<br> -->
-                            <strong>Timer:</strong> Countdown time and repeat interval<br>
                             <strong>Master Prompt:</strong> Append text to every AI transformation to customize. This can be accessed from the main camera screen and the gallery by pressing the MASTER button in the gallery or the 📝 MASTER button in the left side carousel in main camera screen.<br>
-                            <strong>Motion Detection:</strong> Sensitivity, start delay, continuous capture<br>
-                            <strong>Visible Presets:</strong> Select the imported presets you want to see in preset menus. Default all. Can select all, remove individually or remove all (the Ron setting). Each preset has categories indicated at the bottom of the visible preset menu.<br>
+<strong>Visible Presets:</strong> Select the imported presets you want to see in preset menus. Default all. Can select all, remove individually or remove all (the Ron setting). Each preset has categories indicated at the bottom of the visible preset menu.<br>
                             <strong>Preset Builder:</strong> Made to follow a sequence. Click return to go to next selection. Select prompt templates and chips to help you create new and exciting presets. Categories must be separated by commas. You can also create multiple option presets with single or multi-selection! This is a very useful tool that includes prompting tips. You can access the Preset Builder from Settings, or directly from the main menu by tapping the <strong>+</strong> button in the menu header.<br>
                             <strong>No Magic Mode:</strong> Use as a regular camera without AI processing. Photos will only save in the gallery. Photos will not save to rabbit hole or magic gallery. This setting does not affect prompting in gallery. You can send No Magic Mode photos saved in your gallery to the rabbit hole by prompting it with a preset. You may also upload them to gofile.io using the export button in the right carousel of the single image viewer in the gallery.<br>
-                            <strong>Manually Select Options Mode:</strong> Enable/Disable. When enabled, if you choose a preset with options, a modal will appear asking you to pick from one of the options in the preset. Only this option is fed as the final prompt for generating the magical image. This setting does not work with No Magic Mode, Motion Sensor, Burst or Timer. It will work with Randomizer. The manually select options mode may be toggled from the gallery by pressing the OPTIONS button in the gallery<br>
+                            <strong>Manually Select Options Mode:</strong> Enable/Disable. When enabled, if you choose a preset with options, a modal will appear asking you to pick from one of the options in the preset. Only this option is fed as the final prompt for generating the magical image. This setting works with Randomizer. The manually select options mode may be toggled from the gallery by pressing the OPTIONS button in the gallery<br>
                             <strong>Import Resolution:</strong> Select import resolution for external images imported through the gallery.<br>
                             <strong>Reset Database:</strong> Nuclear Option. Only imported presets remain. All custom work deleted.<br>
                             <strong>⚙️ Button Settings:</strong> The main camera screen and gallery image viewer screen carousel buttons are default solid and black. In this section, you may select different colors for buttons and text in the main camera screen and in the gallery image viewer screen. You may also select opacity (default solid) and set how many taps to hide/reveal the buttons in each section under their appropriate tab.<br>

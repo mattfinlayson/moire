@@ -166,41 +166,7 @@ let initialPinchDistance = 0;
 let initialZoom = 1;
 let zoomThrottleTimeout = null;
 
-// Burst mode variables
-let isBurstMode = false;
-let burstCount = 5;
-let burstDelay = 500;
-let isBursting = false;
-const BURST_SPEEDS = {
-  1: { delay: 800, label: 'Slow' },
-  2: { delay: 500, label: 'Medium' },
-  3: { delay: 300, label: 'Fast' }
-};
-const BURST_SETTINGS_KEY = 'r1_camera_burst_settings';
-const TIMER_SETTINGS_KEY = 'r1_camera_timer_settings';
 const LAST_USED_PRESET_KEY = 'r1_camera_last_preset';
-
-// Timer variables
-let isTimerMode = false;
-let timerCountdown = null;
-let timerDelay = 10; // 10 seconds
-let timerRepeatEnabled = false;
-let timerDelayOptions = [3, 5, 10]; // Slider maps to these values
-let timerRepeatInterval = 1; 
-
-// Add this constant for repeat interval options - ADD THIS
-const TIMER_REPEAT_INTERVALS = {
-  1: { seconds: 1, label: '1s' },
-  2: { seconds: 3, label: '3s' },
-  3: { seconds: 5, label: '5s' },
-  4: { seconds: 10, label: '10s' },
-  5: { seconds: 30, label: '30s' },
-  6: { seconds: 60, label: '1m' },
-  7: { seconds: 300, label: '5m' },
-  8: { seconds: 600, label: '10m' },
-  9: { seconds: 1800, label: '30m' },
-  10: { seconds: 3600, label: '1h' }
-};
 
 // Master Prompt settings
 let masterPromptText = '';
@@ -217,31 +183,6 @@ const MAX_HISTORY_PER_PRESET = 5; // Remember last 5 selections per preset
 
 // Randomizer variables
 let isRandomMode = false;
-
-// Motion detection variables
-let isMotionDetectionMode = false;
-let motionDetectionInterval = null;
-let lastFrameData = null;
-let motionThreshold = 30; // Sensitivity: lower = more sensitive
-let motionPixelThreshold = 0.1; // Percentage of pixels that need to change
-let motionContinuousEnabled = true; // Continue capturing without New Photo button
-let motionCooldown = 2; // Seconds to wait after capture
-let isMotionCooldownActive = false;
-let motionStartDelay = 3; // Seconds to wait before starting detection
-const MOTION_SETTINGS_KEY = 'r1_camera_motion_settings';
-let motionStartInterval = null;
-
-// Start delay options mapping
-const MOTION_START_DELAYS = {
-  1: { seconds: 3, label: '3s' },
-  2: { seconds: 10, label: '10s' },
-  3: { seconds: 30, label: '30s' },
-  4: { seconds: 60, label: '1m' },
-  5: { seconds: 300, label: '5m' },
-  6: { seconds: 600, label: '10m' },
-  7: { seconds: 900, label: '15m' },
-  8: { seconds: 1800, label: '30m' }
-};
 
 // No Magic mode
 let noMagicMode = false;
@@ -286,16 +227,11 @@ let isPresetSelectorOpen = false;
 let currentPresetIndex_Gallery = 0;
 let currentSettingsIndex = 0;
 let currentResolutionIndex_Menu = 0;
-let currentBurstIndex = 0;
-let currentTimerIndex = 0;
 let currentMasterPromptIndex = 0;
 let currentMotionIndex = 0;
 let isSettingsSubmenuOpen = false;
 let isResolutionSubmenuOpen = false;
-let isBurstSubmenuOpen = false;
-let isTimerSubmenuOpen = false;
 let isMasterPromptSubmenuOpen = false;
-let isMotionSubmenuOpen = false;
 let isAspectRatioSubmenuOpen = false;
 let currentAspectRatioIndex = 0;
 let isImportResolutionSubmenuOpen = false;
@@ -542,103 +478,92 @@ let currentVisiblePresetsIndex = 0;
 let visiblePresetsFilterText = '';
 let visiblePresetsScrollEnabled = true;
 
-// Toast notification for roulette mode
-let rouletteToastTimeout = null;
-function showRouletteToast(presetName) {
-  // Remove existing toast if any
-  const existingToast = document.getElementById('roulette-toast');
-  if (existingToast) existingToast.remove();
-  if (rouletteToastTimeout) clearTimeout(rouletteToastTimeout);
-  
-  const toast = document.createElement('div');
-  toast.id = 'roulette-toast';
-  toast.innerHTML = `<span class="toast-icon">🎰</span><span class="toast-text">${presetName}</span>`;
-  document.body.appendChild(toast);
-  
-  // Trigger animation
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-  
-  rouletteToastTimeout = setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-    rouletteToastTimeout = null;
-  }, 2000);
+// Picker state
+let selectedPickerPreset = null;
+
+function generatePickerOptions() {
+  const sortedPresets = getSortedPresets();
+
+  if (sortedPresets.length === 0) {
+    return { primary: null, alts: [] };
+  }
+
+  // Fisher-Yates shuffle on a copy of indices
+  const indices = Array.from({ length: sortedPresets.length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  // Take up to 3 unique; cycle if fewer than 3 visible
+  const picks = [];
+  for (let i = 0; i < 3; i++) {
+    picks.push(sortedPresets[indices[i % indices.length]]);
+  }
+
+  return { primary: picks[0], alts: picks.slice(1, 3) };
 }
 
-// Roulette modal event handlers
-(function setupRouletteHandlers() {
-  const primary = document.getElementById('roulette-primary');
-  const altTiles = document.querySelectorAll('.roulette-tile.alt');
-  const rerollBtn = document.getElementById('roulette-reroll-btn');
-  const modal = document.getElementById('roulette-modal');
+function renderPicker() {
+  const overlay = document.getElementById('picker-overlay');
+  const primaryEl = document.getElementById('picker-primary');
+  const altEls = document.querySelectorAll('.picker-alt');
+  if (!overlay || !primaryEl) return;
 
-  if (!primary || !rerollBtn || !modal) return;
+  const options = generatePickerOptions();
+  if (!options.primary) {
+    // Empty state
+    primaryEl.querySelector('.picker-name').textContent = '';
+    altEls.forEach(el => { el.querySelector('.picker-name').textContent = ''; });
+    return;
+  }
 
-  function selectPreset(preset) {
-    const m = document.getElementById('roulette-modal');
-    if (!m._rouletteCleanup) return;
-    const resolve = m._rouletteResolve;
-    m._rouletteCleanup();
-    // Find and highlight the tile
-    const allTiles = document.querySelectorAll('.roulette-tile');
-    allTiles.forEach(t => {
-      if (t._preset === preset) t.classList.add('selected');
-    });
-    setTimeout(() => resolve(preset), 300);
+  // Primary
+  primaryEl.querySelector('.picker-name').textContent = options.primary.name;
+  primaryEl._preset = options.primary;
+  primaryEl.classList.add('selected');
+
+  // Alts
+  altEls.forEach((el, i) => {
+    if (options.alts[i]) {
+      el.querySelector('.picker-name').textContent = options.alts[i].name;
+      el._preset = options.alts[i];
+      el.style.display = 'flex';
+    } else {
+      el.querySelector('.picker-name').textContent = '';
+      el._preset = null;
+    }
+  });
+
+  // Clear alt selection
+  altEls.forEach(el => el.classList.remove('selected'));
+
+  // Default selection = primary
+  selectedPickerPreset = options.primary;
+}
+
+(function setupPickerHandlers() {
+  const primary = document.getElementById('picker-primary');
+  const altEls = document.querySelectorAll('.picker-alt');
+  if (!primary) return;
+
+  function selectTile(tile, preset) {
+    // Deselect all
+    primary.classList.remove('selected');
+    altEls.forEach(el => el.classList.remove('selected'));
+    // Select tapped
+    tile.classList.add('selected');
+    selectedPickerPreset = preset;
   }
 
   primary.addEventListener('click', () => {
-    const p = primary._preset;
-    if (p) selectPreset(p);
+    if (primary._preset) selectTile(primary, primary._preset);
   });
 
-  altTiles.forEach(tile => {
+  altEls.forEach(tile => {
     tile.addEventListener('click', () => {
-      const p = tile._preset;
-      if (p) selectPreset(p);
+      if (tile._preset) selectTile(tile, tile._preset);
     });
-  });
-
-  rerollBtn.addEventListener('click', () => {
-    const m = document.getElementById('roulette-modal');
-    if (!m._rouletteOptions) return;
-
-    // Clear old timer
-    clearTimeout(m._rouletteTimer);
-
-    // Generate new options
-    const newOptions = generateRouletteOptions();
-    if (!newOptions.primary) return;
-    m._rouletteOptions = newOptions;
-
-    // Update DOM
-    document.querySelector('#roulette-primary .roulette-name').textContent = newOptions.primary.name;
-    primary._preset = newOptions.primary;
-
-    const alts = document.querySelectorAll('.roulette-tile.alt');
-    alts.forEach((tile, i) => {
-      tile.querySelector('.roulette-name').textContent = newOptions.alts[i].name;
-      tile._preset = newOptions.alts[i];
-    });
-
-    // Shuffle animation
-    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
-    const content = modal.querySelector('.roulette-content');
-    if (content) {
-      content.classList.remove('shuffling');
-      void content.offsetWidth; // force reflow
-      content.classList.add('shuffling');
-    }
-
-    // Reset auto-select timer
-    m._rouletteTimer = setTimeout(() => {
-      const r = m._rouletteResolve;
-      m._rouletteCleanup();
-      primary.classList.add('selected');
-      setTimeout(() => r(newOptions.primary), 300);
-    }, 5000);
   });
 })();
 
@@ -927,8 +852,6 @@ function getFilteredAndSortedGallery() {
 async function showGallery(renderOnly = false) {
   if (!renderOnly) {
     pauseCamera();
-    cancelTimerCountdown();
-
     // Clear any captured image before opening gallery
     if (capturedImage && capturedImage.style.display === 'block') {
       resetToCamera();
@@ -941,6 +864,11 @@ async function showGallery(renderOnly = false) {
     const leftCamCarousel = document.getElementById('left-cam-carousel');
     if (leftCamCarousel) {
       leftCamCarousel.style.display = 'none';
+    }
+    // Hide picker
+    const pickerOverlayEl2 = document.getElementById('picker-overlay');
+    if (pickerOverlayEl2) {
+      pickerOverlayEl2.style.display = 'none';
     }
   }
   const modal = document.getElementById('gallery-modal');
@@ -1182,7 +1110,14 @@ async function hideGallery() {
     leftCamCarousel.style.display = 'flex';
     leftCamCarousel.classList.remove('hidden');
   }
-  
+
+  // Restore picker
+  const pickerOverlayEl = document.getElementById('picker-overlay');
+  if (pickerOverlayEl) {
+    renderPicker();
+    pickerOverlayEl.style.display = 'flex';
+  }
+
   await reinitializeCamera(); // Re-initialize fully so camera switch works after gallery
   
   // Restore status element display (in case it was hidden by upload function)
@@ -1194,12 +1129,9 @@ async function hideGallery() {
   if (noMagicMode) {
     if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
     showStyleReveal('⚡ NO MAGIC MODE');
-  } else if (isTimerMode || isBurstMode || isMotionDetectionMode || isRandomMode || isMultiPresetMode) {
+  } else if (isRandomMode || isMultiPresetMode) {
     let modeName = '';
-    if (isTimerMode) modeName = '⏱️ Timer Mode';
-    else if (isBurstMode) modeName = '📸 Burst Mode';
-    else if (isMotionDetectionMode) modeName = '👁️ Motion Detection';
-    else if (isRandomMode) modeName = '🎲 Random Mode';
+    if (isRandomMode) modeName = '🎲 Random Mode';
     if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
     showStyleReveal(modeName);
   } else {
@@ -1605,46 +1537,6 @@ function updateResolutionMenuSelection(items) {
   }
 }
 
-function scrollBurstUp() {
-  const submenu = document.getElementById('burst-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.max(0, container.scrollTop - 80);
-  }
-}
-
-function scrollBurstDown() {
-  const submenu = document.getElementById('burst-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.min(container.scrollHeight - container.clientHeight, container.scrollTop + 80);
-  }
-}
-
-function scrollTimerUp() {
-  const submenu = document.getElementById('timer-settings-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.max(0, container.scrollTop - 80);
-  }
-}
-
-function scrollTimerDown() {
-  const submenu = document.getElementById('timer-settings-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.min(container.scrollHeight - container.clientHeight, container.scrollTop + 80);
-  }
-}
-
 function scrollMasterPromptUp() {
   const submenu = document.getElementById('master-prompt-submenu');
   if (!submenu || submenu.style.display !== 'flex') return;
@@ -1657,26 +1549,6 @@ function scrollMasterPromptUp() {
 
 function scrollMasterPromptDown() {
   const submenu = document.getElementById('master-prompt-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.min(container.scrollHeight - container.clientHeight, container.scrollTop + 80);
-  }
-}
-
-function scrollMotionUp() {
-  const submenu = document.getElementById('motion-submenu');
-  if (!submenu || submenu.style.display !== 'flex') return;
-  
-  const container = submenu.querySelector('.submenu-list');
-  if (container) {
-    container.scrollTop = Math.max(0, container.scrollTop - 80);
-  }
-}
-
-function scrollMotionDown() {
-  const submenu = document.getElementById('motion-submenu');
   if (!submenu || submenu.style.display !== 'flex') return;
   
   const container = submenu.querySelector('.submenu-list');
@@ -2342,12 +2214,7 @@ async function resizeImageForSubmission(imageBase64) {
 // ── CAMERA LIVE COMBINE MODE ──────────────────────────────────────────────
 
 // Toggles camera live combine mode on/off.
-// Blocked during burst, timer, and motion detection.
 function toggleCameraLiveCombineMode() {
-  if (isBurstMode || isTimerMode || isMotionDetectionMode) {
-    alert('Combine mode is not available with Burst, Timer, or Motion Detection.');
-    return;
-  }
   window.isCameraLiveCombineMode = !window.isCameraLiveCombineMode;
   window.cameraCombineFirstPhoto = null; // reset any pending first photo
 
@@ -2993,13 +2860,6 @@ function openCameraMultiPresetSelector() {
     setTimeout(() => updatePresetDisplay(), 2000);
     return;
   }
-  // Disabled when burst, motion, or random mode is active
-  if (isBurstMode || isMotionDetectionMode || isRandomMode) {
-    if (statusElement) statusElement.textContent = 'Turn off other modes before using Multi Preset';
-    setTimeout(() => updatePresetDisplay(), 2000);
-    return;
-  }
-
   // Re-use the gallery preset selector modal
   const modal = document.getElementById('preset-selector');
   const header = modal.querySelector('.preset-selector-header h3');
@@ -3512,11 +3372,9 @@ async function loadStyles() {
         }
     }
     
-    loadLastUsedStyle(); 
-    
     loadResolution();
     // loadWhiteBalanceSettings();
-    
+
     // Initialize CAMERA_PRESETS from presets.json
     try {
       const allFactoryPresets = await presetImporter.loadPresetsFromFile();
@@ -3528,6 +3386,8 @@ async function loadStyles() {
       console.log('Could not load presets:', e);
       CAMERA_PRESETS = [];
     }
+
+    loadLastUsedStyle();
     
     // Load visible presets — runs for all users every startup
     const visibleJson = localStorage.getItem(VISIBLE_PRESETS_KEY);
@@ -4053,101 +3913,6 @@ function getRandomPresetIndex() {
   // Otherwise pick from all visible presets
   const randomPreset = sortedPresets[Math.floor(Math.random() * sortedPresets.length)];
   return CAMERA_PRESETS.findIndex(p => p === randomPreset);
-}
-
-// Generate 5 unique random presets for roulette modal
-function generateRouletteOptions() {
-  const sortedPresets = getSortedPresets();
-
-  if (sortedPresets.length === 0) {
-    return { primary: null, alts: [] };
-  }
-
-  // Fisher-Yates shuffle on a copy of indices
-  const indices = Array.from({ length: sortedPresets.length }, (_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-
-  // Take up to 5 unique; cycle if fewer than 5 visible
-  const picks = [];
-  for (let i = 0; i < 5; i++) {
-    picks.push(sortedPresets[indices[i % indices.length]]);
-  }
-
-  return { primary: picks[0], alts: picks.slice(1) };
-}
-
-function toggleMotionDetection() {
-  if (window.isCameraLiveCombineMode) {
-    alert('Turn off Combine mode before enabling Motion Detection.');
-    return;
-  }
-  isMotionDetectionMode = !isMotionDetectionMode;
-  const btn = document.getElementById('motion-toggle');
-  
-  if (isMotionDetectionMode) {
-    btn.classList.add('active');
-    btn.title = 'Motion Detection: ON';
-    statusElement.textContent = noMagicMode 
-      ? `⚡ NO MAGIC MODE • 👁️ Motion Detection`
-      : `Motion Detection mode ON • ${CAMERA_PRESETS[currentPresetIndex].name}`;
-    showStyleReveal('👁️ Motion Detection');
-    } else {
-    btn.classList.remove('active');
-    btn.title = 'Motion Detection: OFF';
-    stopMotionDetection();
-    
-    // Clear any active countdown
-    if (motionStartInterval) {
-      clearInterval(motionStartInterval);
-      motionStartInterval = null;
-    }
-    
-    // Hide countdown display
-    const countdownElement = document.getElementById('timer-countdown');
-    if (countdownElement) {
-      countdownElement.style.display = 'none';
-      countdownElement.classList.remove('countdown-fade-in', 'countdown-fade-out');
-    }
-
-    // Restore camera button visibility
-    const cameraButton = document.getElementById('camera-button');
-    if (cameraButton && availableCameras.length > 1) {
-      cameraButton.style.display = 'flex';
-    }
-    
-    // Show current preset when motion detection is turned off
-    if (CAMERA_PRESETS && CAMERA_PRESETS[currentPresetIndex]) {
-      statusElement.textContent = noMagicMode
-        ? `⚡ NO MAGIC MODE`
-        : `Style: ${CAMERA_PRESETS[currentPresetIndex].name}`;
-      showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
-    }
-  }
-}
-
-function getStartDelaySliderValue() {
-  for (let key in MOTION_START_DELAYS) {
-    if (MOTION_START_DELAYS[key].seconds === motionStartDelay) {
-      return parseInt(key);
-    }
-  }
-  return 1; // Default to 3s
-}
-
-function showMotionSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  document.getElementById('motion-submenu').style.display = 'flex';
-  isMotionSubmenuOpen = true;
-  isSettingsSubmenuOpen = false;
-}
-
-function hideMotionSubmenu() {
-  document.getElementById('motion-submenu').style.display = 'none';
-  isMotionSubmenuOpen = false;
-  showSettingsSubmenu();
 }
 
 function showVisiblePresetsSubmenu() {
@@ -5456,76 +5221,6 @@ function selectCurrentVisiblePresetsItem() {
   }
 }
 
-function updateMotionDisplay() {
-  const sensitivityLabels = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
-  const currentMotionDisplay = document.getElementById('current-motion-display');
-  if (currentMotionDisplay) {
-    const sensitivityLevel = Math.floor((50 - motionThreshold) / 10) + 1;
-    const clampedLevel = Math.max(1, Math.min(5, sensitivityLevel));
-    currentMotionDisplay.textContent = `Sensitivity: ${sensitivityLabels[clampedLevel - 1]}`;
-  }
-}
-
-function saveMotionSettings() {
-  const settings = {
-    motionThreshold,
-    motionPixelThreshold,
-    motionContinuousEnabled,
-    motionCooldown,
-    motionStartDelay
-  };
-  try {
-    localStorage.setItem(MOTION_SETTINGS_KEY, JSON.stringify(settings));
-  } catch (err) {
-    console.error('Failed to save motion settings:', err);
-  }
-}
-
-function loadMotionSettings() {
-  try {
-    const saved = localStorage.getItem(MOTION_SETTINGS_KEY);
-    if (saved) {
-      const settings = JSON.parse(saved);
-      motionThreshold = settings.motionThreshold || 30;
-      motionPixelThreshold = settings.motionPixelThreshold || 0.1;
-      motionContinuousEnabled = settings.motionContinuousEnabled !== undefined ? settings.motionContinuousEnabled : true;
-      motionCooldown = settings.motionCooldown || 2;
-      motionStartDelay = settings.motionStartDelay || 3;
-    }
-    
-    // Update UI elements
-    {
-    const sensitivitySlider = document.getElementById('motion-sensitivity-slider');
-    if (sensitivitySlider) {
-      const sliderValue = Math.floor((50 - motionThreshold) / 10) + 1;
-      sensitivitySlider.value = Math.max(1, Math.min(5, sliderValue));
-    }
-    
-    const continuousCheckbox = document.getElementById('motion-continuous-enabled');
-    if (continuousCheckbox) {
-      continuousCheckbox.checked = motionContinuousEnabled;
-    }
-      
-      const cooldownSlider = document.getElementById('motion-cooldown-slider');
-      if (cooldownSlider) {
-        cooldownSlider.value = motionCooldown;
-      }
-
-      const startDelaySlider = document.getElementById('motion-start-delay-slider');
-      const startDelayValue = document.getElementById('motion-start-delay-value');
-      if (startDelaySlider && startDelayValue) {
-        const sliderValue = getStartDelaySliderValue();
-        startDelaySlider.value = sliderValue;
-        startDelayValue.textContent = MOTION_START_DELAYS[sliderValue].label;
-      }      
-
-      updateMotionDisplay();
-    }
-  } catch (err) {
-    console.error('Failed to load motion settings:', err);
-  }
-}
-
 function toggleNoMagicMode() {
   noMagicMode = !noMagicMode;
   
@@ -6485,14 +6180,11 @@ const TOUR_STEPS = [
   { section: 'AI Presets', title: '⭐ Favorites', body: 'In the main menu, the visible selected preset is highlighted. Tap the star next to any preset to mark it as a favorite. Favorites are used by Random Mode to choose the presets that will be randomized. If no favorites are chosen, random mode chooses between all visible presets.' },
   { section: 'AI Presets', title: '🔍 Filter Presets', body: 'Use the search box in the main menu to quickly find presets by name or category. Tap a category tag at the bottom to filter by style. Tapping on the x next to the search box removes the keyboard. Double click to clear the text in the search bar.' },
   { section: 'AI Presets', title: '🔊 Hear Preset Info', body: 'When browsing presets in the Import screen, tap any preset name to hear its description read aloud. Use the mute button in the header to toggle audio on or off.' },
-  { section: 'Special Modes', title: '🎯 Special Modes — How to Access', body: 'Both carousels are default visible on the main camera screen. The Special Modes carousel is on the right.  Single click (default) on the main camera screen to hide/reveal the carousel buttons. This may be adjusted in settings.' },
-  { section: 'Special Modes', title: '🎲 Random Mode', body: 'Picks a random preset for every photo you take. If you have favorites selected it draws only from those, otherwise from all visible presets.' },
-  { section: 'Special Modes', title: '⏱️ Timer Mode', body: 'Set a countdown of 3, 5, or 10 seconds before each shot. Enable repeat mode so it automatically keeps taking photos at a set interval.' },
-  { section: 'Special Modes', title: '📸⚡ Burst Mode', body: 'Captures 3 to 10 photos rapidly in one press. Choose slow, medium, or fast burst speed in Settings. Great for action shots or getting multiple variations.' },
-  { section: 'Special Modes', title: '👁️ Motion Detection', body: 'Automatically captures when movement is detected in frame. Set sensitivity, start delay, and cooldown interval. The eye icon pulses when motion detection is triggered.' },
-  { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the film strip button in the carousel, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
-  { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Located near the bottom of the right carousel. Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
-  { section: 'Special Modes', title: '📑 Layer presets:', body: 'Located at the bottom of the right carousel. Click to combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
+  { section: 'Special Modes', title: '🎯 Special Modes — How to Access', body: 'The left carousel is default visible on the main camera screen containing Menu, Gallery, Master Prompt, and Options buttons. Single click (default) on the main camera screen to hide/reveal the carousel and picker. This may be adjusted in settings.' },
+  { section: 'Special Modes', title: '🎲 Random Mode', body: 'Picks a random preset for every photo you take. Enable it from the left carousel Options button. If you have favorites selected it draws only from those, otherwise from all visible presets.' },
+  { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the MULTI button at the bottom of the screen, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
+  { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
+  { section: 'Special Modes', title: '📑 Layer presets:', body: 'Combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
   { section: 'Special Modes', title: '📝 Master and 🎛️ Options', body: 'Located below the Menu button on the left side within a carousel. The MASTER button accesses Master Prompt settings. The OPTIONS button toggles Manually Select Options mode. Both Glow green when enabled.' },
   { section: 'Gallery', title: '🖼️ Gallery Activities', body: 'Within the gallery there are thumbnails of captured images. You can either select multiple images to apply a preset, or select a single image to either edit, export or apply one or several presets.' },
   { section: 'Uploading Images', title: '📥 Importing External Images', body: 'In the gallery, you may also bring any image from the web into the gallery using a QR code. Upload the image to catbox.moe, copy the direct link, and generate a QR code at qr-code-generator.com.' },
@@ -6669,108 +6361,6 @@ function hideImportResolutionSubmenu() {
   document.getElementById('import-resolution-submenu').style.display = 'none';
   document.getElementById('settings-submenu').style.display = 'flex';
   isImportResolutionSubmenuOpen = false;
-}
-
-function startMotionDetection() {
-  if (!video || !canvas) return;
-  
-  lastFrameData = null;
-  isMotionCooldownActive = false;
-  
-  motionDetectionInterval = setInterval(() => {
-    if (!isMotionDetectionMode) {
-      return;
-    }
-    
-    // Skip if in cooldown or if captured image is showing (and continuous mode is off)
-    if (isMotionCooldownActive) {
-      return;
-    }
-    
-    if (!motionContinuousEnabled && capturedImage.style.display === 'block') {
-      return;
-    }
-    
-    const motionDetected = detectMotion();
-    if (motionDetected) {
-      console.log('Motion detected! Capturing...');
-      capturePhoto();
-      
-      // Start cooldown period
-      isMotionCooldownActive = true;
-      setTimeout(() => {
-        isMotionCooldownActive = false;
-        lastFrameData = null; // Reset frame comparison after cooldown
-        
-        // Auto-return to camera view after cooldown
-        if (capturedImage.style.display === 'block') {
-          capturedImage.style.display = 'none';
-          video.style.display = 'block';
-        }
-        
-        // If continuous mode is OFF, stop motion detection after one capture
-        if (!motionContinuousEnabled) {
-          stopMotionDetection();
-          isMotionDetectionMode = false;
-          const btn = document.getElementById('motion-toggle');
-          btn.classList.remove('active');
-          btn.title = 'Motion Detection: OFF';
-          showStatus('Motion capture complete - Press eye button to reactivate', 3000);
-          // Show current preset when motion detection auto-stops
-          if (CAMERA_PRESETS && CAMERA_PRESETS[currentPresetIndex]) {
-            showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
-          }
-        }
-      }, motionCooldown * 1000);
-    }
-  }, 500); // Check every 500ms
-}
-
-function stopMotionDetection() {
-  if (motionDetectionInterval) {
-    clearInterval(motionDetectionInterval);
-    motionDetectionInterval = null;
-  }
-  lastFrameData = null;
-}
-
-function detectMotion() {
-  if (!video || !canvas) return false;
-  
-  const context = canvas.getContext('2d');
-  const width = 320; // Use smaller size for performance
-  const height = 240;
-  
-  canvas.width = width;
-  canvas.height = height;
-  context.drawImage(video, 0, 0, width, height);
-  
-  const currentFrame = context.getImageData(0, 0, width, height);
-  
-  if (!lastFrameData) {
-    lastFrameData = currentFrame;
-    return false;
-  }
-  
-  let diffPixels = 0;
-  const totalPixels = width * height;
-  
-  for (let i = 0; i < currentFrame.data.length; i += 4) {
-    const rDiff = Math.abs(currentFrame.data[i] - lastFrameData.data[i]);
-    const gDiff = Math.abs(currentFrame.data[i + 1] - lastFrameData.data[i + 1]);
-    const bDiff = Math.abs(currentFrame.data[i + 2] - lastFrameData.data[i + 2]);
-    
-    const avgDiff = (rDiff + gDiff + bDiff) / 3;
-    
-    if (avgDiff > motionThreshold) {
-      diffPixels++;
-    }
-  }
-  
-  lastFrameData = currentFrame;
-  
-  const changePercentage = diffPixels / totalPixels;
-  return changePercentage > motionPixelThreshold;
 }
 
 // Toggle random mode
@@ -7264,374 +6854,6 @@ async function switchCamera() {
   }
 }
 
-// Load burst settings
-function loadBurstSettings() {
-  try {
-    const saved = localStorage.getItem(BURST_SETTINGS_KEY);
-    if (saved) {
-      const settings = JSON.parse(saved);
-      burstCount = settings.count || 5;
-      const speedKey = settings.speed || 2;
-      burstDelay = BURST_SPEEDS[speedKey].delay;
-    }
-  } catch (err) {
-    console.error('Error loading burst settings:', err);
-  }
-}
-
-// Save burst settings
-function saveBurstSettings(count, speed) {
-  try {
-    localStorage.setItem(BURST_SETTINGS_KEY, JSON.stringify({
-      count: count,
-      speed: speed
-    }));
-  } catch (err) {
-    console.error('Error saving burst settings:', err);
-  }
-}
-
-// Toggle burst mode
-function toggleBurstMode() {
-  if (window.isCameraLiveCombineMode) {
-    alert('Turn off Combine mode before enabling Burst mode.');
-    return;
-  }
-  isBurstMode = !isBurstMode;
-  
-  const burstToggle = document.getElementById('burst-toggle');
-  if (isBurstMode) {
-    burstToggle.classList.add('burst-active');
-    statusElement.textContent = noMagicMode
-      ? `⚡ NO MAGIC MODE • 📸 Burst Mode`
-      : `Burst mode ON (${burstCount} photos) • ${CAMERA_PRESETS[currentPresetIndex].name}`;
-    showStyleReveal('📸 Burst Mode');
-  } else {
-    burstToggle.classList.remove('burst-active');
-    updatePresetDisplay();
-    // Show current preset when burst mode is turned off
-    if (CAMERA_PRESETS && CAMERA_PRESETS[currentPresetIndex]) {
-      showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
-    }
-  }
-  
-  if (typeof PluginMessageHandler !== 'undefined') {
-    PluginMessageHandler.postMessage(JSON.stringify({ 
-      action: 'burst_mode_toggled',
-      enabled: isBurstMode,
-      count: burstCount,
-      timestamp: Date.now() 
-    }));
-  }
-}
-
-// Toggle timer mode
-function toggleTimerMode() {
-  if (window.isCameraLiveCombineMode) {
-    alert('Turn off Combine mode before enabling Timer mode.');
-    return;
-  }
-  isTimerMode = !isTimerMode;
-  
-  const timerToggle = document.getElementById('timer-toggle');
-  if (isTimerMode) {
-    timerToggle.classList.add('timer-active');
-    statusElement.textContent = noMagicMode
-      ? `⚡ NO MAGIC MODE • ⏱️ Timer Mode`
-      : `Timer mode ON (${timerDelay}s delay) • ${CAMERA_PRESETS[currentPresetIndex].name}`;
-    showStyleReveal('⏱️ Timer Mode');
-  } else {
-    timerToggle.classList.remove('timer-active');
-    // Cancel any active timer
-    if (timerCountdown) {
-      clearInterval(timerCountdown);
-      timerCountdown = null;
-      document.getElementById('timer-countdown').style.display = 'none';
-    }
-    // Clear camera multi-preset if timer is being turned off
-        if (isCameraMultiPresetActive) {
-          clearCameraMultiPresets();
-        }
-    updatePresetDisplay();
-    // Show current preset when timer mode is turned off
-    if (CAMERA_PRESETS && CAMERA_PRESETS[currentPresetIndex]) {
-      showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
-    }
-  }
-  
-  if (typeof PluginMessageHandler !== 'undefined') {
-    PluginMessageHandler.postMessage(JSON.stringify({ 
-      action: 'timer_mode_toggled',
-      enabled: isTimerMode,
-      delay: timerDelay,
-      timestamp: Date.now() 
-    }));
-  }
-}
-
-// Start timer countdown
-function startTimerCountdown(captureCallback) {
-  let remainingSeconds = timerDelay;
-  const countdownElement = document.getElementById('timer-countdown');
-  const countdownText = document.getElementById('timer-countdown-text');
-  
-  // Show initial countdown
-  countdownText.textContent = remainingSeconds;
-  countdownElement.style.display = 'flex';
-  countdownElement.classList.remove('countdown-fade-out');
-  countdownElement.classList.add('countdown-fade-in');
-  
-  statusElement.textContent = `Timer: ${remainingSeconds}s...`;
-  
-  timerCountdown = setInterval(() => {
-    remainingSeconds--;
-    
-    if (remainingSeconds > 0) {
-      // Fade out current number
-      countdownElement.classList.remove('countdown-fade-in');
-      countdownElement.classList.add('countdown-fade-out');
-      
-      setTimeout(() => {
-        // Update number and fade in
-        countdownText.textContent = remainingSeconds;
-        countdownElement.classList.remove('countdown-fade-out');
-        countdownElement.classList.add('countdown-fade-in');
-        statusElement.textContent = `Timer: ${remainingSeconds}s...`;
-      }, 500);
-      
-    } else {
-      // Timer finished - fade out and capture
-      countdownElement.classList.remove('countdown-fade-in');
-      countdownElement.classList.add('countdown-fade-out');
-      
-      setTimeout(() => {
-        countdownElement.style.display = 'none';
-        countdownElement.classList.remove('countdown-fade-out');
-        clearInterval(timerCountdown);
-        timerCountdown = null;
-        
-        // Execute the capture callback
-        captureCallback();
-        
-        // In continuous mode, auto-return to camera and continue
-        if (timerRepeatEnabled && isTimerMode) {
-          // Auto-return to camera view after brief delay
-          setTimeout(() => {
-            if (capturedImage.style.display === 'block') {
-              capturedImage.style.display = 'none';
-              video.style.display = 'block';
-              
-              // Restore camera switch button if multiple cameras available
-              const cameraButton = document.getElementById('camera-button');
-              if (cameraButton && availableCameras.length > 1) {
-                cameraButton.style.display = 'flex';
-              }
-            }
-          }, 500);
-          
-          // Continue timer loop
-          setTimeout(() => {
-            if (isTimerMode) {
-              startTimerCountdown(captureCallback);
-            }
-          }, timerRepeatInterval * 1000);
-        }
-      }, 500);
-    }
-  }, 1000);
-}
-
-// Cancel timer countdown
-function cancelTimerCountdown() {
-  if (timerCountdown) {
-    clearInterval(timerCountdown);
-    timerCountdown = null;
-    document.getElementById('timer-countdown').style.display = 'none';
-    updatePresetDisplay();
-  }
-}
-
-// Load timer settings from localStorage
-function loadTimerSettings() {
-  try {
-    const saved = localStorage.getItem(TIMER_SETTINGS_KEY);
-    if (saved) {
-      const settings = JSON.parse(saved);
-      timerDelay = settings.delay || 10;
-      timerRepeatEnabled = settings.repeat || false;
-      timerRepeatInterval = settings.repeatInterval || 1;
-    }
-  } catch (err) {
-    console.error('Error loading timer settings:', err);
-  }
-}
-
-// Save timer settings to localStorage
-function saveTimerSettings() {
-  try {
-    localStorage.setItem(TIMER_SETTINGS_KEY, JSON.stringify({
-      delay: timerDelay,
-      repeat: timerRepeatEnabled,
-      repeatInterval: timerRepeatInterval // ADD THIS LINE
-    }));
-  } catch (err) {
-    console.error('Error saving timer settings:', err);
-  }
-}
-
-// Update timer display in settings menu
-function updateTimerDisplay() {
-  const display = document.getElementById('current-timer-display');
-  if (display) {
-    const repeatText = timerRepeatEnabled ? `Repeat (${TIMER_REPEAT_INTERVALS[getTimerRepeatIntervalKey()].label})` : 'No Repeat';
-    display.textContent = `${timerDelay}s, ${repeatText}`;
-  }
-}
-
-// Helper function to get current repeat interval key
-function getTimerRepeatIntervalKey() {
-  for (const [key, value] of Object.entries(TIMER_REPEAT_INTERVALS)) {
-    if (value.seconds === timerRepeatInterval) {
-      return parseInt(key);
-    }
-  }
-  return 1; // Default to 1 second
-}
-
-// Burst mode capture
-async function startBurstCapture() {
-  if (!stream || isBursting || capturedImage.style.display === 'block') {
-    return;
-  }
-  
-  isBursting = true;
-  
-  statusElement.textContent = `Burst mode: Taking ${burstCount} photos...`;
-  
-  for (let i = 0; i < burstCount; i++) {
-    statusElement.textContent = `Burst ${i + 1}/${burstCount}...`;
-    
-    captureBurstPhoto(i + 1);
-    
-    if (i < burstCount - 1) {
-      await new Promise(resolve => setTimeout(resolve, burstDelay));
-    }
-  }
-  
-  isBursting = false;
-  // Clear the voice preset now that all burst shots have been taken.
-  window.voicePreset = null;
-  statusElement.textContent = `Burst complete! ${burstCount} photos saved.`;
-  
-  if (isOnline && !isSyncing) {
-    setTimeout(() => {
-      syncQueuedPhotos();
-    }, 500);
-  } else if (!isOnline) {
-    statusElement.textContent = `Burst complete! ${burstCount} photos queued (offline).`;
-  }
-  
-  if (typeof PluginMessageHandler !== 'undefined') {
-    PluginMessageHandler.postMessage(JSON.stringify({ 
-      action: 'burst_complete',
-      count: burstCount,
-      timestamp: Date.now() 
-    }));
-  }
-  
-  setTimeout(() => {
-    if (isBurstMode) {
-      statusElement.textContent = noMagicMode
-        ? `⚡ NO MAGIC MODE • 📸 Burst Mode`
-        : `Burst mode ON (${burstCount} photos) • ${CAMERA_PRESETS[currentPresetIndex].name}`;
-    } else {
-      updatePresetDisplay();
-    }
-  }, 2000);
-}
-
-function captureBurstPhoto(photoNumber) {
-  if (!stream) return;
-  
-  if (isRandomMode) {
-    currentPresetIndex = getRandomPresetIndex();
-  }
-  
-  // Only resize if dimensions actually changed to save CPU
-  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-  }
-  
-  const ctx = canvas.getContext('2d', { willReadFrequently: false, alpha: false });
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  const zoomedWidth = canvas.width / currentZoom;
-  const zoomedHeight = canvas.height / currentZoom;
-  const offsetX = (canvas.width - zoomedWidth) / 2;
-  const offsetY = (canvas.height - zoomedHeight) / 2;
-  
-  // Since selfie camera (mis-identified as !isFrontCamera) shows mirrored preview,
-  // we need to flip the capture back to normal orientation
-  if (!isFrontCamera()) {
-    // This is actually the SELFIE camera - capture needs double flip to un-mirror
-    ctx.save();
-    ctx.scale(-1, 1);
-    
-    ctx.drawImage(
-      video,
-      offsetX, offsetY, zoomedWidth, zoomedHeight,
-      -canvas.width, 0, canvas.width, canvas.height
-    );
-    
-    ctx.restore();
-    
-    // Now flip the canvas content back to un-mirror the final photo
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.scale(-1, 1);
-    tempCtx.drawImage(canvas, -canvas.width, 0);
-    
-    // Copy back to main canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(tempCanvas, 0, 0);
-  } else {
-    // This is the regular camera - keep as is
-    ctx.drawImage(
-      video,
-      offsetX, offsetY, zoomedWidth, zoomedHeight,
-      0, 0, canvas.width, canvas.height
-    );
-  }
-  
-  // Apply white balance adjustments to canvas pixels - COMMENTED OUT
-  // applyWhiteBalanceToCanvas(ctx, canvas.width, canvas.height);
-  
-  // Use lower quality for higher resolutions to reduce file size
-const quality = currentResolutionIndex >= 2 ? 0.7 : 0.8;
-  const dataUrl = canvas.toDataURL('image/jpeg', quality);
-  // Use the voice preset if set — all burst shots share the same voice preset.
-  // voicePreset is cleared by startBurstCapture after the loop finishes.
-  const currentPreset = window.voicePreset || CAMERA_PRESETS[currentPresetIndex];
-  
-  // Add to gallery
-  addToGallery(dataUrl);
-  
-  const queueItem = {
-    id: Date.now().toString() + '-' + photoNumber,
-    imageBase64: dataUrl,
-    preset: currentPreset,
-    timestamp: Date.now()
-  };
-  
-  photoQueue.push(queueItem);
-  saveQueue();
-  updateQueueDisplay();
-}
-
 // Initialize camera
 async function initCamera() {
   try {
@@ -7718,6 +6940,13 @@ async function initCamera() {
       if (leftCamCarousel) {
         leftCamCarousel.style.display = 'flex';
       }
+
+    // Initialize picker overlay
+    const pickerOverlay = document.getElementById('picker-overlay');
+    if (pickerOverlay) {
+      renderPicker();
+      pickerOverlay.style.display = 'flex';
+    }
 
     updatePresetDisplay();
     
@@ -7878,12 +7107,9 @@ async function reinitializeCamera() {
   if (noMagicMode) {
     if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
     showStyleReveal('⚡ NO MAGIC MODE');
-  } else if (isTimerMode || isBurstMode || isMotionDetectionMode || isRandomMode || isMultiPresetMode) {
+  } else if (isRandomMode || isMultiPresetMode) {
     let modeName = '';
-    if (isTimerMode) modeName = '⏱️ Timer Mode';
-    else if (isBurstMode) modeName = '📸 Burst Mode';
-    else if (isMotionDetectionMode) modeName = '👁️ Motion Detection';
-    else if (isRandomMode) modeName = '🎲 Random Mode';
+    if (isRandomMode) modeName = '🎲 Random Mode';
     if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
     showStyleReveal(modeName);
   } else {
@@ -7958,86 +7184,22 @@ async function resumeCamera() {
   }
 }
 
-// Show roulette modal and return Promise that resolves with selected preset
-function showRouletteModal() {
-  return new Promise((resolve) => {
-    const options = generateRouletteOptions();
-    if (!options.primary) {
-      resolve(null);
-      return;
-    }
-
-    // Populate DOM
-    document.querySelector('#roulette-primary .roulette-name').textContent = options.primary.name;
-    const altTiles = document.querySelectorAll('.roulette-tile.alt');
-    altTiles.forEach((tile, i) => {
-      tile.querySelector('.roulette-name').textContent = options.alts[i].name;
-    });
-
-    // Store presets on elements for click handlers
-    document.getElementById('roulette-primary')._preset = options.primary;
-    altTiles.forEach((tile, i) => {
-      tile._preset = options.alts[i];
-    });
-
-    // Clear previous selection state
-    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
-
-    const modal = document.getElementById('roulette-modal');
-    const content = modal.querySelector('.roulette-content');
-    if (content) content.classList.remove('shuffling');
-
-    modal.style.display = 'flex';
-
-    // 5s auto-select timer
-    let autoSelectTimer = setTimeout(() => {
-      cleanup();
-      document.getElementById('roulette-primary').classList.add('selected');
-      setTimeout(() => resolve(options.primary), 300);
-    }, 5000);
-
-    function cleanup() {
-      clearTimeout(autoSelectTimer);
-      modal.style.display = 'none';
-      modal._rouletteResolve = null;
-      modal._rouletteOptions = null;
-      modal._rouletteTimer = null;
-      modal._rouletteCleanup = null;
-    }
-
-    // Store resolve/cleanup on modal for event handlers (U4)
-    modal._rouletteResolve = resolve;
-    modal._rouletteOptions = options;
-    modal._rouletteTimer = autoSelectTimer;
-    modal._rouletteCleanup = cleanup;
-  });
-}
-
 // Capture photo and send to WebSocket
-async function capturePhoto() {
+function capturePhoto() {
   if (!stream) return;
 
-  const previousIndex = currentPresetIndex;
-
-  if (isRandomMode && !isTimerMode && !isMotionDetectionMode && !isBurstMode) {
-    // Roulette path: show modal, await user selection
-    const selectedPreset = await showRouletteModal();
-    if (!selectedPreset) return;
-    currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPreset);
-    showStyleReveal(selectedPreset.name);
-  } else {
-    // Original random selection path
-    currentPresetIndex = getRandomPresetIndex();
-
-    // Only show toast if we actually selected a different preset
-    if (currentPresetIndex !== previousIndex) {
-      showRouletteToast(CAMERA_PRESETS[currentPresetIndex].name);
+  if (isRandomMode) {
+    // Picker path: use selected picker preset, or primary as default
+    if (selectedPickerPreset) {
+      currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPickerPreset);
+    } else {
+      currentPresetIndex = getRandomPresetIndex();
     }
-
-    // Also show the style reveal popup
-    showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
+  } else {
+    currentPresetIndex = getRandomPresetIndex();
   }
-  
+  showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
+
   // Only resize if dimensions actually changed to save CPU
   if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
     canvas.width = video.videoWidth;
@@ -8099,23 +7261,16 @@ async function capturePhoto() {
   const quality = currentResolutionIndex >= 2 ? 0.7 : 0.8;
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   capturedImage.src = dataUrl;
+  // Hide picker during preview
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay) pickerOverlay.style.display = 'none';
+
   capturedImage.style.display = 'block';
   capturedImage.style.transform = 'none';
   video.style.display = 'none';
   
     // Stop QR detection when photo is captured
   stopQRDetection();
-
-  // Hide reset button when motion detection OR continuous timer is active
-  if (isMotionDetectionMode || (isTimerMode && timerRepeatEnabled)) {
-    resetButton.style.display = 'none';
-  } else {
-    resetButton.style.display = 'block';
-  }
-  // } else {
-  //   resetButton.style.display = 'none';
-  // }
-  // above three lines may be wrong
 
   const cameraButton = document.getElementById('camera-button');
   if (cameraButton) {
@@ -8185,9 +7340,7 @@ addToGallery(dataUrl);
     }
 
     // If timer is NOT active, clear multi-preset state after firing
-    if (!isTimerMode) {
-      clearCameraMultiPresets();
-    }
+    clearCameraMultiPresets();
     return;
   }
   // END CAMERA MULTI-PRESET PATH
@@ -8244,11 +7397,7 @@ addToGallery(dataUrl);
   updateQueueDisplay();
   
   // If Manual Options is enabled and preset has options, show modal
-  // BUT: Manual Options does NOT work with Timer, Motion Detection, or Burst modes
-  // It ONLY works with Random mode or no special mode
-  const isIncompatibleMode = isTimerMode || isMotionDetectionMode || isBurstMode;
-  
-  if (manualOptionsMode && !noMagicMode && !isIncompatibleMode) {
+  if (manualOptionsMode && !noMagicMode) {
     const options = parsePresetOptions(currentPreset);
     
     if (options.length > 0) {
@@ -8594,105 +7743,6 @@ window.addEventListener('sideClick', () => {
     } else {
       resetToCamera();
     }
-  } else {
-    // If motion detection is active, side button starts the delay countdown
-    if (isMotionDetectionMode) {
-      // Show countdown and start motion detection after delay
-      if (motionStartDelay > 0) {
-        let remainingSeconds = motionStartDelay;
-        const countdownElement = document.getElementById('timer-countdown');
-        const countdownText = document.getElementById('timer-countdown-text');
-        
-        countdownText.textContent = remainingSeconds;
-        countdownElement.style.display = 'flex';
-        countdownElement.classList.remove('countdown-fade-out');
-        countdownElement.classList.add('countdown-fade-in');
-        
-        statusElement.textContent = `Motion Detection starting in ${remainingSeconds}s...`;
-        
-        motionStartInterval = setInterval(() => {
-          remainingSeconds--;
-          
-          if (remainingSeconds > 0) {
-            countdownElement.classList.remove('countdown-fade-in');
-            countdownElement.classList.add('countdown-fade-out');
-            
-            setTimeout(() => {
-              countdownText.textContent = remainingSeconds;
-              countdownElement.classList.remove('countdown-fade-out');
-              countdownElement.classList.add('countdown-fade-in');
-              statusElement.textContent = `Motion Detection starting in ${remainingSeconds}s...`;
-            }, 500);
-          } else {
-            countdownElement.classList.remove('countdown-fade-in');
-            countdownElement.classList.add('countdown-fade-out');
-            
-            setTimeout(() => {
-              countdownElement.style.display = 'none';
-              countdownElement.classList.remove('countdown-fade-out');
-              clearInterval(motionStartInterval);
-              
-              // Start motion detection
-              if (isMotionDetectionMode && video && video.readyState >= 2) {
-                startMotionDetection();
-                showStatus('Motion Detection active - Move in front of camera', 3000);
-              }
-            }, 500);
-          }
-        }, 1000);
-      } else {
-        // No delay - start immediately
-        startMotionDetection();
-        showStatus('Motion Detection ON - Move in front of camera', 3000);
-      }
-      return;
-    }
-    
-    // Normal photo capture (not in motion detection mode)
-    // If camera combine mode is active, handle the two-shot sequence
-    if (window.isCameraLiveCombineMode) {
-      if (!window.cameraCombineFirstPhoto) {
-        // Take photo 1 — capture it raw, save to gallery, then wait for photo 2
-        const dataUrl = captureRawPhotoDataUrl();
-        if (dataUrl) {
-          addToGallery(dataUrl);
-          window.cameraCombineFirstPhoto = dataUrl;
-          // Return to live camera view so user can see what they are shooting for photo 2
-          capturedImage.style.display = 'none';
-          video.style.display = 'block';
-          statusElement.textContent = '✅ First photo taken! Press side button for second photo';
-          showStyleReveal('📸 1st done!\nTake 2nd photo');
-        }
-      } else {
-        // Take photo 2
-        const dataUrl = captureRawPhotoDataUrl();
-        if (dataUrl) {
-          addToGallery(dataUrl);
-          const photo1 = window.cameraCombineFirstPhoto;
-          window.cameraCombineFirstPhoto = null;
-          const voicePresetForCombine = window.cameraCombineVoicePreset || null;
-          window.cameraCombineVoicePreset = null;
-          finalizeCameraLiveCombine(photo1, dataUrl, voicePresetForCombine, voicePresetForCombine !== null);
-        }
-      }
-      return;
-    }
-
-    // Check if timer is active
-    if (isTimerMode) {
-      if (isBurstMode) {
-        startTimerCountdown(() => startBurstCapture());
-      } else {
-        startTimerCountdown(() => capturePhoto());
-      }
-    } else {
-      // No timer - capture immediately
-      if (isBurstMode) {
-        startBurstCapture();
-      } else {
-        capturePhoto();
-      }
-    }
   }
 });
 
@@ -8748,27 +7798,9 @@ window.addEventListener('scrollUp', () => {
     return;
   }
   
-  // Motion submenu
-  if (isMotionSubmenuOpen) {
-    scrollMotionUp();
-    return;
-  }
-
   // Master prompt submenu
   if (isMasterPromptSubmenuOpen) {
     scrollMasterPromptUp();
-    return;
-  }
-  
-  // Timer submenu
-  if (isTimerSubmenuOpen) {
-    scrollTimerUp();
-    return;
-  }
-  
-  // Burst submenu
-  if (isBurstSubmenuOpen) {
-    scrollBurstUp();
     return;
   }
   
@@ -8814,7 +7846,14 @@ window.addEventListener('scrollUp', () => {
     scrollQueueUp();
     return;
   }
-  
+
+  // Picker shuffle — intercept camera cycling when picker is visible
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay && pickerOverlay.style.display === 'flex') {
+    renderPicker();
+    return;
+  }
+
   // Camera preset cycling
   if (!stream || capturedImage.style.display === 'block') return;
   
@@ -8906,27 +7945,9 @@ window.addEventListener('scrollDown', () => {
     return;
   }
 
-  // Motion submenu
-  if (isMotionSubmenuOpen) {
-    scrollMotionDown();
-    return;
-  }
-  
   // Master prompt submenu
   if (isMasterPromptSubmenuOpen) {
     scrollMasterPromptDown();
-    return;
-  }
-  
-  // Timer submenu
-  if (isTimerSubmenuOpen) {
-    scrollTimerDown();
-    return;
-  }
-  
-  // Burst submenu
-  if (isBurstSubmenuOpen) {
-    scrollBurstDown();
     return;
   }
   
@@ -9018,6 +8039,18 @@ function updatePresetDisplay() {
     currentPresetIndex = Math.max(0, Math.min(currentPresetIndex, CAMERA_PRESETS.length - 1));
     const currentPreset = CAMERA_PRESETS[currentPresetIndex];
 
+    // Clean display name: strip leading #, normalize case
+    function getCleanPresetName(preset) {
+        let name = preset.name || '';
+        name = name.replace(/^#/, '');
+        // Convert ALL_CAPS (likely hashtag-style) to title case
+        if (/^[A-Z_]+$/.test(name.replace(/\s/g, ''))) {
+            name = name.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        return name.trim();
+    }
+    const cleanName = getCleanPresetName(currentPreset);
+
     if (videoTrack) {
         try {
             const constraints = {};
@@ -9034,9 +8067,9 @@ function updatePresetDisplay() {
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
         statusElement.textContent = `📑 LAYER (${cameraLayerPresets.length} presets)`;
     } else if (manualOptionsMode) {
-        statusElement.textContent = `🎯 MANUALLY SELECT | Style: ${currentPreset.name}`;
+        statusElement.textContent = `🎯 MANUALLY SELECT | Style: ${cleanName}`;
     } else {
-        statusElement.textContent = `Style: ${currentPreset.name}`;
+        statusElement.textContent = `Style: ${cleanName}`;
     }
     
     // Show style reveal on screen (middle text)
@@ -9045,7 +8078,7 @@ function updatePresetDisplay() {
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
       showStyleReveal('📑 LAYERS');
     } else {
-      showStyleReveal(currentPreset.name);
+      showStyleReveal(cleanName);
     }
 
     localStorage.setItem(LAST_USED_PRESET_KEY, currentPresetIndex.toString());
@@ -9075,37 +8108,34 @@ if (typeof PluginMessageHandler !== 'undefined') {
 // Reset button handler
 function resetToCamera() {
   capturedImage.style.display = 'none';
-  
-  // Don't stop/restart motion detection if it's active with continuous mode
-  if (isMotionDetectionMode && motionContinuousEnabled) {
-    // Motion detection is already running, don't interrupt it
-  } else {
-    stopMotionDetection();
-    if (isMotionDetectionMode) {
-      startMotionDetection();
-    }
-  }
 
   capturedImage.style.transform = 'none';
   video.style.display = 'block';
   resetButton.style.display = 'none';
-  
+
   const cameraButton = document.getElementById('camera-button');
   if (cameraButton && availableCameras.length > 1) {
     cameraButton.style.display = 'flex';
   }
-  
+
   const resolutionButton = document.getElementById('resolution-button');
   if (resolutionButton) {
     resolutionButton.style.display = 'flex';
   }
-  
+
+  // Restore picker
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay) {
+    renderPicker();
+    pickerOverlay.style.display = 'flex';
+  }
+
   setTimeout(() => {
     applyZoom(currentZoom);
   }, 50);
-  
+
   updatePresetDisplay();
-  
+
   // Restart QR detection when returning to camera view
   startQRDetection();
 }
@@ -9310,15 +8340,12 @@ function showUnifiedMenu() {
     stylesCountElement.textContent = totalVisible;
   }
   updateResolutionDisplay();
-  updateBurstDisplay();
   updateMasterPromptDisplay();
-  updateTimerDisplay();
-  
+
   isMenuOpen = true;
   menuScrollEnabled = true;
-  
+
   pauseCamera();
-  cancelTimerCountdown();
   menu.style.display = 'flex';
 }
 
@@ -9344,12 +8371,8 @@ async function hideUnifiedMenu() {
     // NO MAGIC MODE overrides everything in footer and popup
     if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
     showStyleReveal('⚡ NO MAGIC MODE');
-  } else if (isTimerMode || isBurstMode || isMotionDetectionMode || isRandomMode) {
-    let modeName = '';
-    if (isTimerMode) modeName = '⏱️ Timer Mode';
-    else if (isBurstMode) modeName = '📸 Burst Mode';
-    else if (isMotionDetectionMode) modeName = '👁️ Motion Detection';
-    else if (isRandomMode) modeName = '🎲 Random Mode';
+  } else if (isRandomMode) {
+    const modeName = '🎲 Random Mode';
     if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
     showStyleReveal(modeName);
   } else {
@@ -9364,10 +8387,8 @@ function showSettingsSubmenu() {
   const menu = document.getElementById('unified-menu');
   
   updateResolutionDisplay();
-  updateBurstDisplay();
-  updateTimerDisplay();
   updateMasterPromptDisplay();
-  
+
   menu.style.display = 'none';
   pauseCamera();
   submenu.style.display = 'flex';
@@ -9405,56 +8426,7 @@ function hideSettingsSubmenu() {
 }
 
 // Show Timer Settings submenu
-function showTimerSettingsSubmenu() {
-  const submenu = document.getElementById('timer-settings-submenu');
-  const settingsMenu = document.getElementById('settings-submenu');
-  
-  // Load current values into UI
-  const delaySlider = document.getElementById('timer-delay-slider');
-  const delayValue = document.getElementById('timer-delay-value');
-  const repeatCheckbox = document.getElementById('timer-repeat-enabled');
-  
-  if (delaySlider && delayValue) {
-    const sliderIndex = timerDelayOptions.indexOf(timerDelay);
-    delaySlider.value = sliderIndex !== -1 ? sliderIndex + 1 : 3;
-    delayValue.textContent = timerDelay;
-  }
-  
-  if (repeatCheckbox) {
-    repeatCheckbox.checked = timerRepeatEnabled;
-  }
-  
-  // Load repeat interval input values
-  const intervalInput = document.getElementById('timer-repeat-interval-input');
-  const intervalUnit = document.getElementById('timer-repeat-interval-unit');
-  if (intervalInput && intervalUnit) {
-    // Determine best unit and value
-    if (timerRepeatInterval >= 3600 && timerRepeatInterval % 3600 === 0) {
-      intervalInput.value = timerRepeatInterval / 3600;
-      intervalUnit.value = '3600';
-    } else if (timerRepeatInterval >= 60 && timerRepeatInterval % 60 === 0) {
-      intervalInput.value = timerRepeatInterval / 60;
-      intervalUnit.value = '60';
-    } else {
-      intervalInput.value = timerRepeatInterval;
-      intervalUnit.value = '1';
-    }
-  }
-  
-  settingsMenu.style.display = 'none';
-  pauseCamera();
-  submenu.style.display = 'flex';
-  isTimerSubmenuOpen = true;
-  isSettingsSubmenuOpen = false;
-}
-
 // Hide Timer Settings submenu
-function hideTimerSettingsSubmenu() {
-  document.getElementById('timer-settings-submenu').style.display = 'none';
-  isTimerSubmenuOpen = false;
-  showSettingsSubmenu();
-}
-
 function jumpToTopOfMenu() {
   const scrollContainer = document.querySelector('.styles-menu-scroll-container');
   if (scrollContainer) {
@@ -9492,20 +8464,6 @@ function updateResolutionDisplay() {
   if (display) {
     const res = RESOLUTION_PRESETS[currentResolutionIndex];
     display.textContent = `${res.width}x${res.height}`;
-  }
-}
-
-function updateBurstDisplay() {
-  const display = document.getElementById('current-burst-display');
-  if (display) {
-    let speedLabel = 'Medium';
-    for (const [key, value] of Object.entries(BURST_SPEEDS)) {
-      if (value.delay === burstDelay) {
-        speedLabel = value.label;
-        break;
-      }
-    }
-    display.textContent = `${burstCount} photos, ${speedLabel}`;
   }
 }
 
@@ -9556,46 +8514,6 @@ async function hideResolutionSubmenu() {
   currentResolutionIndex_Menu = 0;
   showSettingsSubmenu();
   // await resumeCamera();
-}
-
-function showBurstSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  pauseCamera();
-  
-  const submenu = document.getElementById('burst-submenu');
-  
-  const countSlider = document.getElementById('burst-count-slider');
-  const speedSlider = document.getElementById('burst-speed-slider');
-  const countValue = document.getElementById('burst-count-value');
-  const speedValue = document.getElementById('burst-speed-value');
-  
-  if (countSlider && countValue) {
-    countSlider.value = burstCount;
-    countValue.textContent = burstCount;
-  }
-  
-  if (speedSlider && speedValue) {
-    let currentSpeed = 2;
-    for (const [key, value] of Object.entries(BURST_SPEEDS)) {
-      if (value.delay === burstDelay) {
-        currentSpeed = parseInt(key);
-        break;
-      }
-    }
-    speedSlider.value = currentSpeed;
-    speedValue.textContent = BURST_SPEEDS[currentSpeed].label;
-  }
-
-  submenu.style.display = 'flex';
-  isBurstSubmenuOpen = true;
-  isSettingsSubmenuOpen = false;
-}
-
-async function hideBurstSubmenu() {
-  document.getElementById('burst-submenu').style.display = 'none';
-  isBurstSubmenuOpen = false;
-  // await resumeCamera();
-  showSettingsSubmenu();
 }
 
 function showMasterPromptSubmenu() {
@@ -9934,521 +8852,12 @@ function clearAllHistory() {
 // Check if Manual Options can be used based on current mode
 function canUseManualOptions() {
   if (noMagicMode) {
-    return { 
-      allowed: false, 
-      reason: 'Manual Select disabled: No Magic Mode is active' 
+    return {
+      allowed: false,
+      reason: 'Manual Select disabled: No Magic Mode is active'
     };
   }
-  
-  if (isTimerMode) {
-    return { 
-      allowed: false, 
-      reason: 'Manual Select disabled: Timer Mode is active' 
-    };
-  }
-  
-  if (isMotionDetectionMode) {
-    return { 
-      allowed: false, 
-      reason: 'Manual Select disabled: Motion Detection is active' 
-    };
-  }
-  
-  if (isBurstMode) {
-    return { 
-      allowed: false, 
-      reason: 'Manual Select disabled: Burst Mode is active' 
-    };
-  }
-  
-  return { allowed: true };
-}
 
-// Parse preset message to extract random options for manual selection
-// Returns array of sections: [{ title, options: [{value, label}] }]
-function parsePresetOptions(preset) {
-  const sections = [];
-  
-  // NEW FORMAT: Check if preset has optionGroups (multi-selection like FRIENDS)
-  if (preset.optionGroups && preset.optionGroups.length > 0) {
-    preset.optionGroups.forEach(group => {
-      const activeOptions = group.options
-        .map((opt, index) => ({ opt, index }))
-        .filter(({ opt }) => opt.enabled !== false);
-      const pool = activeOptions.length > 0 ? activeOptions : group.options.map((opt, index) => ({ opt, index }));
-      sections.push({
-        title: group.title,
-        options: pool.map(({ opt, index }) => ({
-          value: index,
-          label: `${index}: ${opt.text}`
-        }))
-      });
-    });
-    return sections;
-  }
-  
-  // NEW FORMAT: Check if preset has options array (single-selection)
-  if (preset.options && preset.options.length > 0) {
-    const activeOptions = preset.options
-      .map((opt, index) => ({ opt, index }))
-      .filter(({ opt }) => opt.enabled !== false);
-    const pool = activeOptions.length > 0 ? activeOptions : preset.options.map((opt, index) => ({ opt, index }));
-    sections.push({
-      title: 'SELECT',
-      options: pool.map(({ opt, index }) => ({
-        value: index,
-        label: `${index}: ${opt.text}`
-      }))
-    });
-    return sections;
-  }
-  
-  // No options - return empty
-  return [];
-}
-
-function getFinalPrompt(preset, manualSelection = null) {
-  // Build prompt from clean preset structure
-  let finalPrompt = preset.message || null;
-  if (finalPrompt === null) {
-    // No message — return null so the caller can omit the message key entirely
-    // which tells the r1 server to use its own built-in default magic behavior
-    return null;
-  }
-
-//  finalPrompt = finalPrompt;
-
-  // If this is a combined image, replace the opening "Take a picture" with the combine preamble
-
-  if (window.isCombinedMode) {
-    const combinePreamble = 'Take a picture of this image containing two photos placed side by side — the left half is Subject A and the right half is Subject B. Take both subjects and transform them together into a single unified image —';
-    // Replace ONLY the words "Take a picture" at the very start, preserving the rest of the sentence
-    finalPrompt = finalPrompt.replace(/^Take a picture/i, combinePreamble);
-  }
-  
-  // Handle options if preset uses randomization
-  if (preset.randomizeOptions) {
-    if (manualSelection !== null) {
-      // User manually selected options
-      finalPrompt += '\n\n' + buildSelectedOptionsText(preset, manualSelection);
-    } else {
-      // Random selection
-      finalPrompt += '\n\n' + buildRandomOptionsText(preset);
-    }
-  }
-  
-  // Add master prompt at the end as concrete override instructions
-  if (masterPromptEnabled && masterPromptText.trim()) {
-    finalPrompt += `\n\nOVERRIDE INSTRUCTIONS (these take priority over everything above - apply exactly as specified):\n${masterPromptText}`;
-  }
-  
-  // Add additional instructions (CRITICAL/MANDATORY sections)
-  if (preset.additionalInstructions && preset.additionalInstructions.trim()) {
-    finalPrompt += '\n\n' + preset.additionalInstructions;
-  }
-  
-  // Add aspect ratio override at the very end
-  if (selectedAspectRatio === '1:1') {
-    finalPrompt += '\n\nUse a square aspect ratio.';
-  } else if (selectedAspectRatio === '16:9') {
-    finalPrompt += '\n\nUse a square aspect ratio, but pad the image with black bars at top and bottom to simulate a 16:9 aspect ratio.';
-  }
-  
-  const trimmed = finalPrompt.trim();
-  console.log('FINAL PROMPT:', trimmed || '(empty — server default)');
-  return trimmed || null;
-}
-
-// Helper: Build text for manually selected options
-function buildSelectedOptionsText(preset, selection) {
-  let text = 'SELECTED OPTIONS:\n';
-  
-  // Multi-selection (array of selections)
-  if (Array.isArray(selection)) {
-    preset.optionGroups.forEach((group, index) => {
-      const selectedOption = group.options[selection[index]];
-      text += `• ${group.title}: ${selectedOption.text}\n`;
-    });
-  }
-  // Single selection (single number)
-  else {
-    const selectedOption = preset.options[selection];
-    text += `• ${selectedOption.text}`;
-  }
-  
-  return text;
-}
-
-// Helper: Build text for random selections
-function buildRandomOptionsText(preset) {
-  const seed = Date.now();
-  let text = 'SELECTED OPTIONS (Random):\n';
-  
-  // Multi-selection preset
-  if (preset.optionGroups && preset.optionGroups.length > 0) {
-    preset.optionGroups.forEach((group, index) => {
-      const activeOptions = group.options.filter(o => o.enabled !== false);
-      const pool = activeOptions.length > 0 ? activeOptions : group.options;
-      const selectedIndex = (seed + index * 13) % pool.length;
-      const selectedOption = pool[selectedIndex];
-      text += `• ${group.title}: ${selectedOption.text}\n`;
-    });
-  }
-  // Single selection preset
-  else if (preset.options && preset.options.length > 0) {
-    const activeOptions = preset.options.filter(o => o.enabled !== false);
-    const pool = activeOptions.length > 0 ? activeOptions : preset.options;
-    const selectedIndex = seed % pool.length;
-    const selectedOption = pool[selectedIndex];
-    text += `• ${selectedOption.text}`;
-  }
-  
-  return text;
-}
-
-function trackSelection(presetName, selectedOption) {
-  if (!presetName || !selectedOption) return;
-  
-  // Get current history
-  const history = getPresetHistory(presetName);
-  
-  // Add new selection to beginning
-  history.unshift(selectedOption);
-  
-  // Keep only last 5 selections
-  if (history.length > MAX_HISTORY_PER_PRESET) {
-    history.splice(MAX_HISTORY_PER_PRESET);
-  }
-  
-  // Save back to storage
-  selectionHistory[presetName] = history;
-  localStorage.setItem(SELECTION_HISTORY_KEY, JSON.stringify(selectionHistory));
-}
-
-function getPresetHistory(presetName) {
-  if (!presetName) return [];
-  
-  // Load history from storage if not in memory
-  if (!selectionHistory[presetName]) {
-    const stored = localStorage.getItem(SELECTION_HISTORY_KEY);
-    if (stored) {
-      try {
-        selectionHistory = JSON.parse(stored);
-      } catch (e) {
-        selectionHistory = {};
-      }
-    }
-  }
-  
-  return selectionHistory[presetName] || [];
-}
-
-function populateStylesList(preserveScroll = false) {
-    const list = document.getElementById('menu-styles-list');
-    list.innerHTML = '';
-    
-    // Remove old event listener if it exists
-    list.replaceWith(list.cloneNode(false));
-    const newList = document.getElementById('menu-styles-list');
-    
-    const fragment = document.createDocumentFragment();
-    
-    const { favorites, regular } = getStylesLists();
-    
-    const filteredFavorites = favorites.filter(preset => {
-      // First apply text search filter
-      if (styleFilterText) {
-        const searchText = styleFilterText.toLowerCase();
-        const categoryMatch = preset.category && preset.category.some(cat => cat.toLowerCase().includes(searchText));
-        const optionsMatch = (
-          (preset.options && preset.options.some(o => o.text && o.text.toLowerCase().includes(searchText))) ||
-          (preset.optionGroups && preset.optionGroups.some(g => g.title && g.title.toLowerCase().includes(searchText) || g.options && g.options.some(o => o.text && o.text.toLowerCase().includes(searchText))))
-        );
-        const textMatch = preset.name.toLowerCase().includes(searchText) ||
-                         (preset.message || '').toLowerCase().includes(searchText) ||
-                         categoryMatch || optionsMatch;
-        if (!textMatch) return false;
-      }
-      if (mainMenuFilterByCategory) {
-        return preset.category && preset.category.includes(mainMenuFilterByCategory);
-      }
-      return true;
-    });
-
-    const filtered = regular.filter(preset => {
-      if (styleFilterText) {
-        const searchText = styleFilterText.toLowerCase();
-        const categoryMatch = preset.category && preset.category.some(cat => cat.toLowerCase().includes(searchText));
-        const optionsMatch = (
-          (preset.options && preset.options.some(o => o.text && o.text.toLowerCase().includes(searchText))) ||
-          (preset.optionGroups && preset.optionGroups.some(g => g.title && g.title.toLowerCase().includes(searchText) || g.options && g.options.some(o => o.text && o.text.toLowerCase().includes(searchText))))
-        );
-        const textMatch = preset.name.toLowerCase().includes(searchText) ||
-                         (preset.message || '').toLowerCase().includes(searchText) ||
-                         categoryMatch || optionsMatch;
-        if (!textMatch) return false;
-      }
-      if (mainMenuFilterByCategory) {
-        return preset.category && preset.category.includes(mainMenuFilterByCategory);
-      }
-      return true;
-    });
-
-    if (filteredFavorites.length > 0) {
-        const favHeader = document.createElement('h3');
-        favHeader.className = 'menu-section-header';
-        favHeader.textContent = '★ Favorites';
-        fragment.appendChild(favHeader);
-
-        filteredFavorites.forEach(preset => {
-            const item = createStyleMenuItemFast(preset);
-            fragment.appendChild(item);
-        });
-    }
-
-    if (filtered.length > 0) {
-        const regularHeader = document.createElement('h3');
-        regularHeader.className = 'menu-section-header';
-        regularHeader.textContent = styleFilterText ? 'Search Results' : 'All Styles';
-        fragment.appendChild(regularHeader);
-        
-        filtered.forEach(preset => {
-            const item = createStyleMenuItemFast(preset);
-            fragment.appendChild(item);
-        });
-    }
-    
-    if (filtered.length === 0 && filteredFavorites.length === 0 && styleFilterText) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.className = 'menu-empty';
-      emptyMsg.textContent = 'No styles found';
-      fragment.appendChild(emptyMsg);
-    }
-
-    newList.appendChild(fragment);
-    
-    // Single event listener for the entire list using event delegation
-    newList.addEventListener('click', handleStyleListClick);
-
-// Update styles count - count from getStylesLists which already filters to visible
-  const stylesCountElement = document.getElementById('styles-count');
-  if (stylesCountElement) {
-    const { favorites, regular } = getStylesLists();
-    const totalVisible = favorites.length + regular.length;
-    stylesCountElement.textContent = totalVisible;
-  }
-    
-    if (!preserveScroll) {
-        currentMenuIndex = 0;
-        updateMenuSelection();
-    }
-}
-
-function createStyleMenuItemFast(preset) {
-    const originalIndex = CAMERA_PRESETS.findIndex(p => p === preset);
-    
-    const item = document.createElement('div');
-    item.className = 'style-item';
-    item.dataset.index = originalIndex; // Store index in data attribute
-    
-    if (originalIndex === currentPresetIndex) {
-        item.classList.add('active');
-    }
-    
-    const favBtn = document.createElement('button');
-    favBtn.className = 'style-favorite';
-    favBtn.textContent = isFavoriteStyle(preset.name) ? '⭐' : '☆';
-    favBtn.dataset.action = 'favorite';
-    favBtn.dataset.styleName = preset.name;
-    
-    const name = document.createElement('span');
-    name.className = 'style-name';
-    name.textContent = preset.name;
-    
-    const editBtn = document.createElement('button');
-    editBtn.className = 'style-edit';
-    
-    // Check if this is a user-created preset (has internal: false)
-    const isUserPreset = (preset.internal === false);
-    editBtn.textContent = isUserPreset ? 'Builder' : 'Edit';
-    editBtn.dataset.action = isUserPreset ? 'builder' : 'edit';
-    editBtn.dataset.index = originalIndex;
-    
-    item.appendChild(favBtn);
-    item.appendChild(name);
-    item.appendChild(editBtn);
-    
-    return item;
-}
-
-// Add this new event delegation handler
-function handleStyleListClick(e) {
-    const target = e.target;
-    
-    // Handle favorite button click
-    if (target.dataset.action === 'favorite') {
-        e.stopPropagation();
-        const styleName = target.dataset.styleName;
-        saveFavoriteStyle(styleName);
-        return;
-    }
-    
-    // Handle edit button click
-    if (target.dataset.action === 'edit') {
-        e.stopPropagation();
-        const index = parseInt(target.dataset.index);
-        editStyle(index);
-        return;
-    }
-    
-    // Handle builder button click
-    if (target.dataset.action === 'builder') {
-        e.stopPropagation();
-        const index = parseInt(target.dataset.index);
-        returnToMainMenuFromBuilder = true;
-        hideUnifiedMenu();
-        editPresetInBuilder(index);
-        return;
-    }
-    
-    // Handle item click
-    const item = target.closest('.style-item');
-    if (item) {
-        const index = parseInt(item.dataset.index);
-        if (!isNaN(index)) {
-            currentPresetIndex = index;
-            updatePresetDisplay();
-            hideUnifiedMenu();
-        }
-    }
-}
-
-function showStyleEditor(title = 'Add New Style') {
-  const editor = document.getElementById('style-editor');
-  document.getElementById('editor-title').textContent = title;
-  editor.style.display = 'flex';
-  
-  // Focus the scrollable body to enable R1 scroll wheel
-  setTimeout(() => {
-    const editorBody = document.querySelector('.style-editor-body');
-    if (editorBody) {
-      editorBody.focus();
-    }
-  }, 100);
-}
-
-// Detect keyboard visibility and adjust style editor layout
-let styleEditorKeyboardVisible = false;
-
-// Detect when inputs receive focus (keyboard likely opening)
-function handleStyleEditorInputFocus() {
-  if (!styleEditorKeyboardVisible) {
-    styleEditorKeyboardVisible = true;
-    const editorBody = document.querySelector('.style-editor-body');
-    if (editorBody) {
-      editorBody.style.gap = '0.5vh';
-      editorBody.style.paddingBottom = '0.5vw';
-    }
-  }
-}
-
-// Detect when inputs lose focus (keyboard likely closing)
-function handleStyleEditorInputBlur() {
-  // Only reset if no other input in the editor has focus
-  setTimeout(() => {
-    const editorInputs = document.querySelectorAll('.style-input, .style-textarea');
-    const anyFocused = Array.from(editorInputs).some(input => input === document.activeElement);
-    
-    if (!anyFocused && styleEditorKeyboardVisible) {
-      styleEditorKeyboardVisible = false;
-      const editorBody = document.querySelector('.style-editor-body');
-      if (editorBody) {
-        editorBody.style.gap = '1vh';
-        editorBody.style.paddingBottom = '1vw';
-      }
-    }
-  }, 100);
-}
-
-// Add event listeners to style editor inputs
-const styleNameInput = document.getElementById('style-name');
-const styleCategoryInput = document.getElementById('style-category');
-const styleMessageTextarea = document.getElementById('style-message');
-
-if (styleNameInput) {
-  styleNameInput.addEventListener('focus', handleStyleEditorInputFocus);
-  styleNameInput.addEventListener('blur', handleStyleEditorInputBlur);
-}
-
-if (styleCategoryInput) {
-  styleCategoryInput.addEventListener('focus', handleStyleEditorInputFocus);
-  styleCategoryInput.addEventListener('blur', handleStyleEditorInputBlur);
-}
-
-if (styleMessageTextarea) {
-  styleMessageTextarea.addEventListener('focus', handleStyleEditorInputFocus);
-  styleMessageTextarea.addEventListener('blur', handleStyleEditorInputBlur);
-}
-
-function hideStyleEditor() {
-  document.getElementById('style-editor').style.display = 'none';
-  document.getElementById('style-name').value = '';
-  document.getElementById('style-message').value = '';
-  const categoryInput = document.getElementById('style-category');
-  if (categoryInput) {
-    categoryInput.value = '';
-  }
-  document.getElementById('delete-style').style.display = 'none';
-  const savedEditingStyleIndex = editingStyleIndex;
-  editingStyleIndex = -1;
-  
-  // If we came from the gallery viewer, return there instead of menu
-  if (returnToGalleryFromViewerEdit) {
-    returnToGalleryFromViewerEdit = false;
-    // Remember which preset was loaded before we open the viewer (openImageViewer blanks the field)
-    const presetToRestore = window.viewerLoadedPreset;
-    openImageViewer(currentViewerImageIndex);
-    // Determine which preset to load into the viewer
-    let presetToShow = null;
-    if (presetToRestore) {
-      // Editing existing — find by name first, fall back to saved index
-      let updatedPreset = CAMERA_PRESETS.find(p => p.name === presetToRestore.name);
-      if (!updatedPreset && savedEditingStyleIndex >= 0 && CAMERA_PRESETS[savedEditingStyleIndex]) {
-        updatedPreset = CAMERA_PRESETS[savedEditingStyleIndex];
-      }
-      presetToShow = updatedPreset || presetToRestore;
-    } else if (savedEditingStyleIndex >= 0 && CAMERA_PRESETS[savedEditingStyleIndex]) {
-      // Edited existing with no prior loaded preset
-      presetToShow = CAMERA_PRESETS[savedEditingStyleIndex];
-    } else {
-      // Brand new preset saved from style editor — find most recently saved
-      presetToShow = CAMERA_PRESETS[CAMERA_PRESETS.length - 1] || null;
-    }
-    if (presetToShow) {
-      window.viewerLoadedPreset = presetToShow;
-      let fullText = presetToShow.message || '';
-      if (presetToShow.randomizeOptions) {
-        if (presetToShow.optionGroups && presetToShow.optionGroups.length > 0) {
-          presetToShow.optionGroups.forEach(group => {
-            fullText += '\n\n' + group.title + ':\n';
-            group.options.forEach((opt, i) => { fullText += '  ' + i + ': ' + opt.text + '\n'; });
-          });
-        } else if (presetToShow.options && presetToShow.options.length > 0) {
-          fullText += '\n\nOPTIONS:\n';
-          presetToShow.options.forEach((opt, i) => { fullText += '  ' + i + ': ' + opt.text + '\n'; });
-        }
-      }
-      if (presetToShow.additionalInstructions && presetToShow.additionalInstructions.trim()) {
-        fullText += '\n\n' + presetToShow.additionalInstructions;
-      }
-      const promptInput = document.getElementById('viewer-prompt');
-      if (promptInput) promptInput.value = fullText;
-      const presetHeader = document.getElementById('viewer-preset-header');
-      if (presetHeader) presetHeader.textContent = presetToShow.name;
-    }
-    updatePresetDisplay();
-    return;
-  }
 }
 
 function editStyle(index) {
@@ -11204,26 +9613,6 @@ window.addEventListener('load', () => {
     resolutionBackBtn.addEventListener('click', hideResolutionSubmenu);
   }
   
-  const burstSettingsBtn = document.getElementById('burst-settings-button');
-  if (burstSettingsBtn) {
-    burstSettingsBtn.addEventListener('click', showBurstSubmenu);
-  }
-  
-  const burstBackBtn = document.getElementById('burst-back');
-  if (burstBackBtn) {
-    burstBackBtn.addEventListener('click', hideBurstSubmenu);
-  }
-
-  const timerSettingsBtn = document.getElementById('timer-settings-button');
-  if (timerSettingsBtn) {
-    timerSettingsBtn.addEventListener('click', showTimerSettingsSubmenu);
-  }
-  
-  const timerSettingsBackBtn = document.getElementById('timer-settings-back');
-  if (timerSettingsBackBtn) {
-    timerSettingsBackBtn.addEventListener('click', hideTimerSettingsSubmenu);
-  }
- 
   const masterPromptSettingsBtn = document.getElementById('master-prompt-settings-button');
   if (masterPromptSettingsBtn) {
     masterPromptSettingsBtn.addEventListener('click', showMasterPromptSubmenu);
@@ -11496,15 +9885,6 @@ window.addEventListener('load', () => {
     });
   }
 
-  const motionSettingsBtn = document.getElementById('motion-settings-button');
-  if (motionSettingsBtn) {
-    motionSettingsBtn.addEventListener('click', showMotionSubmenu);
-  }
-  
-  const motionBackBtn = document.getElementById('motion-back');
-  if (motionBackBtn) {
-    motionBackBtn.addEventListener('click', hideMotionSubmenu);
-  }
 
   const visiblePresetsSettingsBtn = document.getElementById('visible-presets-settings-button');
   if (visiblePresetsSettingsBtn) {
@@ -12395,49 +10775,6 @@ document.addEventListener('touchend', () => {
   //   whiteBalanceBackBtn.addEventListener('click', hideWhiteBalanceSubmenu);
   // }
 
-  const motionSensitivitySlider = document.getElementById('motion-sensitivity-slider');
-  const motionSensitivityValue = document.getElementById('motion-sensitivity-value');
-  if (motionSensitivitySlider && motionSensitivityValue) {
-    const sensitivityLabels = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
-    motionSensitivitySlider.addEventListener('input', (e) => {
-      const level = parseInt(e.target.value);
-      motionSensitivityValue.textContent = sensitivityLabels[level - 1];
-      // Convert slider (1-5) to threshold (50-10)
-      motionThreshold = 50 - (level * 10);
-      saveMotionSettings();
-      updateMotionDisplay();
-    });
-  }
-  
-  const motionContinuousCheckbox = document.getElementById('motion-continuous-enabled');
-  if (motionContinuousCheckbox) {
-    motionContinuousCheckbox.addEventListener('change', (e) => {
-      motionContinuousEnabled = e.target.checked;
-      saveMotionSettings();
-    });
-  }
-  
-  const motionCooldownSlider = document.getElementById('motion-cooldown-slider');
-  const motionCooldownValue = document.getElementById('motion-cooldown-value');
-  if (motionCooldownSlider && motionCooldownValue) {
-    motionCooldownSlider.addEventListener('input', (e) => {
-      motionCooldown = parseInt(e.target.value);
-      motionCooldownValue.textContent = `${motionCooldown}s`;
-      saveMotionSettings();
-    });
-  }
-
-  const motionStartDelaySlider = document.getElementById('motion-start-delay-slider');
-  const motionStartDelayValue = document.getElementById('motion-start-delay-value');
-  if (motionStartDelaySlider && motionStartDelayValue) {
-    motionStartDelaySlider.addEventListener('input', (e) => {
-      const key = parseInt(e.target.value);
-      motionStartDelay = MOTION_START_DELAYS[key].seconds;
-      motionStartDelayValue.textContent = MOTION_START_DELAYS[key].label;
-      saveMotionSettings();
-    });
-  }
-
   const noMagicToggleBtn = document.getElementById('no-magic-toggle-button');
   if (noMagicToggleBtn) {
     noMagicToggleBtn.addEventListener('click', toggleNoMagicMode);
@@ -12709,79 +11046,7 @@ const result = await presetImporter.import();
       // Category footer will be restored by updateMenuSelection when needed
     });
   }
-   
-  const burstCountSlider = document.getElementById('burst-count-slider');
-  const burstSpeedSlider = document.getElementById('burst-speed-slider');
-  
-  if (burstCountSlider) {
-    burstCountSlider.addEventListener('input', (e) => {
-      burstCount = parseInt(e.target.value);
-      document.getElementById('burst-count-value').textContent = burstCount;
-      
-      const speedKey = parseInt(burstSpeedSlider.value);
-      saveBurstSettings(burstCount, speedKey);
-      updateBurstDisplay();
-      
-      if (isBurstMode) {
-        statusElement.textContent = noMagicMode
-          ? `⚡ NO MAGIC MODE • 📸 Burst Mode`
-          : `Burst mode ON (${burstCount} photos) • ${CAMERA_PRESETS[currentPresetIndex].name}`;
-      }
-    });
-  }
-  
-  if (burstSpeedSlider) {
-    burstSpeedSlider.addEventListener('input', (e) => {
-      const speedKey = parseInt(e.target.value);
-      burstDelay = BURST_SPEEDS[speedKey].delay;
-      document.getElementById('burst-speed-value').textContent = BURST_SPEEDS[speedKey].label;
-      
-      saveBurstSettings(burstCount, speedKey);
-      updateBurstDisplay();
-    });
-  }
 
-  // Timer settings listeners
-  const timerDelaySlider = document.getElementById('timer-delay-slider');
-  const timerDelayValue = document.getElementById('timer-delay-value');
-  if (timerDelaySlider && timerDelayValue) {
-    timerDelaySlider.addEventListener('input', (e) => {
-      const index = parseInt(e.target.value) - 1;
-      timerDelay = timerDelayOptions[index];
-      timerDelayValue.textContent = timerDelay;
-      saveTimerSettings();
-      updateTimerDisplay();
-    });
-  }
-  
-  const timerRepeatCheckbox = document.getElementById('timer-repeat-enabled');
-  if (timerRepeatCheckbox) {
-    timerRepeatCheckbox.addEventListener('change', (e) => {
-      timerRepeatEnabled = e.target.checked;
-      saveTimerSettings();
-      updateTimerDisplay();
-    });
-  }
-
-  // Timer repeat interval input
-  const timerRepeatIntervalInput = document.getElementById('timer-repeat-interval-input');
-  const timerRepeatIntervalUnit = document.getElementById('timer-repeat-interval-unit');
-  if (timerRepeatIntervalInput && timerRepeatIntervalUnit) {
-    const updateRepeatInterval = () => {
-      const value = parseInt(timerRepeatIntervalInput.value) || 1;
-      const multiplier = parseInt(timerRepeatIntervalUnit.value);
-      timerRepeatInterval = value * multiplier;
-      saveTimerSettings();
-      updateTimerDisplay();
-    };
-    
-    timerRepeatIntervalInput.addEventListener('input', updateRepeatInterval);
-    timerRepeatIntervalUnit.addEventListener('change', updateRepeatInterval);
-  }
-
-  loadBurstSettings();
-  loadTimerSettings();
-  loadMotionSettings();
   loadNoMagicMode();
   loadManualOptionsMode();
   loadImportResolution();
@@ -13963,12 +12228,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const mode = button.getAttribute('data-mode');
       if (mode === 'random') {
         button.addEventListener('click', toggleRandomMode);
-      } else if (mode === 'motion') {
-        button.addEventListener('click', toggleMotionDetection);
-      } else if (mode === 'burst') {
-        button.addEventListener('click', toggleBurstMode);
-      } else if (mode === 'timer') {
-        button.addEventListener('click', toggleTimerMode);
       } else if (mode === 'camera-multi') {
         button.addEventListener('click', openCameraMultiPresetSelector);
       } else if (mode === 'camera-combine') {
@@ -14188,7 +12447,7 @@ console.log('AI Camera Styles app initialized!');
     styleEl.textContent = `
       .left-cam-btn:not(.enabled) { background: ${bg} !important; }
       .left-cam-btn { color: ${fc} !important; }
-      .mode-button:not(.random-active):not(.active):not(.burst-active):not(.timer-active):not(.camera-multi-active):not(.combine-active):not(.layer-active) { background: ${bg} !important; }
+      .mode-button:not(.random-active):not(.active):not(.camera-multi-active):not(.combine-active):not(.layer-active) { background: ${bg} !important; }
       .mode-button { color: ${fc} !important; }
       .camera-button { background: ${bg} !important; }
       .mode-label { color: ${fc} !important; }
@@ -14223,9 +12482,6 @@ console.log('AI Camera Styles app initialized!');
     if (document.getElementById('button-settings-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('resolution-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('aspect-ratio-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('burst-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('timer-settings-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('motion-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('visible-presets-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('import-resolution-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('tutorial-submenu')?.style.display === 'flex') return false;
@@ -14235,6 +12491,7 @@ console.log('AI Camera Styles app initialized!');
   function toggleCarousels() {
     const leftCarousel = document.getElementById('left-cam-carousel');
     const rightCarousel = document.querySelector('.mode-carousel');
+    const pickerOverlay = document.getElementById('picker-overlay');
 
     leftVisible = !leftVisible;
     rightVisible = !rightVisible;
@@ -14251,6 +12508,9 @@ console.log('AI Camera Styles app initialized!');
         rightCarousel.style.transform = 'translateX(calc(100% + 8px))';
         rightCarousel.style.pointerEvents = 'none';
       }
+    }
+    if (pickerOverlay) {
+      pickerOverlay.style.display = leftVisible ? 'flex' : 'none';
     }
     lastTapTime = 0;
   }
@@ -14494,24 +12754,8 @@ console.log('AI Camera Styles app initialized!');
           return;
         }
 
-        // Normal (non-combine) voice preset — trigger the camera as usual
-        if (!isMotionDetectionMode) {
-          if (isTimerMode) {
-            if (isBurstMode) {
-              startTimerCountdown(() => startBurstCapture());
-            } else {
-              startTimerCountdown(() => capturePhoto());
-            }
-          } else {
-            if (isBurstMode) {
-              startBurstCapture();
-            } else {
-              capturePhoto();
-            }
-          }
-        }
-        // Motion detection: voicePreset is now set and will be picked up
-        // automatically the next time motion triggers capturePhoto()
+        // Normal (non-combine) voice preset — trigger the camera
+        capturePhoto();
       }
     }
   };

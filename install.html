@@ -45,7 +45,7 @@ h1 span { color: #FE5000; }
 </head>
 <body>
 <h1>✨ <span>Moire</span></h1>
-<p class="subtitle">Roulette Camera for Rabbit R1 — scan to install</p>
+<p class="subtitle">AI Photo Camera for Rabbit R1 — scan to install</p>
 <div id="qr"></div>
 <div class="url" id="url-label"></div>
 
@@ -72,13 +72,13 @@ h1 span { color: #FE5000; }
   var qrData = JSON.stringify({
     title: "Moire",
     url: creationUrl,
-    description: "Roulette camera - each photo gets a random AI preset",
+    description: "AI photo camera - pick a preset, take a photo",
     iconUrl: base + 'icon.svg',
     themeColor: "#FE5000"
   });
 
   var qrCode = new QRCodeStyling({
-    width: 260, height: 260,
+    width: 364, height: 364,
     data: qrData,
     dotsOptions: { color: "#ffffff", type: "rounded" },
     backgroundOptions: { color: "#0e0e10" },
