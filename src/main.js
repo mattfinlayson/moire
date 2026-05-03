@@ -227,8 +227,6 @@ let isPresetSelectorOpen = false;
 let currentPresetIndex_Gallery = 0;
 let currentSettingsIndex = 0;
 let currentResolutionIndex_Menu = 0;
-let currentBurstIndex = 0;
-let currentTimerIndex = 0;
 let currentMasterPromptIndex = 0;
 let currentMotionIndex = 0;
 let isSettingsSubmenuOpen = false;
@@ -2216,7 +2214,6 @@ async function resizeImageForSubmission(imageBase64) {
 // ── CAMERA LIVE COMBINE MODE ──────────────────────────────────────────────
 
 // Toggles camera live combine mode on/off.
-// Blocked during burst, timer, and motion detection.
 function toggleCameraLiveCombineMode() {
   window.isCameraLiveCombineMode = !window.isCameraLiveCombineMode;
   window.cameraCombineFirstPhoto = null; // reset any pending first photo
@@ -6183,14 +6180,11 @@ const TOUR_STEPS = [
   { section: 'AI Presets', title: '⭐ Favorites', body: 'In the main menu, the visible selected preset is highlighted. Tap the star next to any preset to mark it as a favorite. Favorites are used by Random Mode to choose the presets that will be randomized. If no favorites are chosen, random mode chooses between all visible presets.' },
   { section: 'AI Presets', title: '🔍 Filter Presets', body: 'Use the search box in the main menu to quickly find presets by name or category. Tap a category tag at the bottom to filter by style. Tapping on the x next to the search box removes the keyboard. Double click to clear the text in the search bar.' },
   { section: 'AI Presets', title: '🔊 Hear Preset Info', body: 'When browsing presets in the Import screen, tap any preset name to hear its description read aloud. Use the mute button in the header to toggle audio on or off.' },
-  { section: 'Special Modes', title: '🎯 Special Modes — How to Access', body: 'Both carousels are default visible on the main camera screen. The Special Modes carousel is on the right.  Single click (default) on the main camera screen to hide/reveal the carousel buttons. This may be adjusted in settings.' },
-  { section: 'Special Modes', title: '🎲 Random Mode', body: 'Picks a random preset for every photo you take. If you have favorites selected it draws only from those, otherwise from all visible presets.' },
-  { section: 'Special Modes', title: '⏱️ Timer Mode', body: 'Set a countdown of 3, 5, or 10 seconds before each shot. Enable repeat mode so it automatically keeps taking photos at a set interval.' },
-  { section: 'Special Modes', title: '📸⚡ Burst Mode', body: 'Captures 3 to 10 photos rapidly in one press. Choose slow, medium, or fast burst speed in Settings. Great for action shots or getting multiple variations.' },
-  { section: 'Special Modes', title: '👁️ Motion Detection', body: 'Automatically captures when movement is detected in frame. Set sensitivity, start delay, and cooldown interval. The eye icon pulses when motion detection is triggered.' },
-  { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the film strip button in the carousel, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
-  { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Located near the bottom of the right carousel. Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
-  { section: 'Special Modes', title: '📑 Layer presets:', body: 'Located at the bottom of the right carousel. Click to combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
+  { section: 'Special Modes', title: '🎯 Special Modes — How to Access', body: 'The left carousel is default visible on the main camera screen containing Menu, Gallery, Master Prompt, and Options buttons. Single click (default) on the main camera screen to hide/reveal the carousel and picker. This may be adjusted in settings.' },
+  { section: 'Special Modes', title: '🎲 Random Mode', body: 'Picks a random preset for every photo you take. Enable it from the left carousel Options button. If you have favorites selected it draws only from those, otherwise from all visible presets.' },
+  { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the MULTI button at the bottom of the screen, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
+  { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
+  { section: 'Special Modes', title: '📑 Layer presets:', body: 'Combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
   { section: 'Special Modes', title: '📝 Master and 🎛️ Options', body: 'Located below the Menu button on the left side within a carousel. The MASTER button accesses Master Prompt settings. The OPTIONS button toggles Manually Select Options mode. Both Glow green when enabled.' },
   { section: 'Gallery', title: '🖼️ Gallery Activities', body: 'Within the gallery there are thumbnails of captured images. You can either select multiple images to apply a preset, or select a single image to either edit, export or apply one or several presets.' },
   { section: 'Uploading Images', title: '📥 Importing External Images', body: 'In the gallery, you may also bring any image from the web into the gallery using a QR code. Upload the image to catbox.moe, copy the direct link, and generate a QR code at qr-code-generator.com.' },
@@ -6860,17 +6854,6 @@ async function switchCamera() {
   }
 }
 
-// Load burst settings
-// Save burst settings
-// Toggle burst mode
-// Toggle timer mode
-// Start timer countdown
-// Cancel timer countdown
-// Load timer settings from localStorage
-// Save timer settings to localStorage
-// Update timer display in settings menu
-// Helper function to get current repeat interval key
-// Burst mode capture
 // Initialize camera
 async function initCamera() {
   try {
@@ -7288,12 +7271,6 @@ function capturePhoto() {
   
     // Stop QR detection when photo is captured
   stopQRDetection();
-
-  // Hide reset button when motion detection OR continuous timer is active
-  // } else {
-  //   resetButton.style.display = 'none';
-  // }
-  // above three lines may be wrong
 
   const cameraButton = document.getElementById('camera-button');
   if (cameraButton) {
@@ -7766,8 +7743,6 @@ window.addEventListener('sideClick', () => {
     } else {
       resetToCamera();
     }
-  } else {
-    // If motion detection is active, side button starts the delay countdown
   }
 });
 
@@ -7823,17 +7798,11 @@ window.addEventListener('scrollUp', () => {
     return;
   }
   
-  // Motion submenu
-
   // Master prompt submenu
   if (isMasterPromptSubmenuOpen) {
     scrollMasterPromptUp();
     return;
   }
-  
-  // Timer submenu
-  
-  // Burst submenu
   
   // Resolution submenu
   if (isResolutionSubmenuOpen) {
@@ -7976,17 +7945,11 @@ window.addEventListener('scrollDown', () => {
     return;
   }
 
-  // Motion submenu
-  
   // Master prompt submenu
   if (isMasterPromptSubmenuOpen) {
     scrollMasterPromptDown();
     return;
   }
-  
-  // Timer submenu
-  
-  // Burst submenu
   
   // Resolution submenu
   if (isResolutionSubmenuOpen) {
@@ -12484,7 +12447,7 @@ console.log('AI Camera Styles app initialized!');
     styleEl.textContent = `
       .left-cam-btn:not(.enabled) { background: ${bg} !important; }
       .left-cam-btn { color: ${fc} !important; }
-      .mode-button:not(.random-active):not(.active):not(.burst-active):not(.timer-active):not(.camera-multi-active):not(.combine-active):not(.layer-active) { background: ${bg} !important; }
+      .mode-button:not(.random-active):not(.active):not(.camera-multi-active):not(.combine-active):not(.layer-active) { background: ${bg} !important; }
       .mode-button { color: ${fc} !important; }
       .camera-button { background: ${bg} !important; }
       .mode-label { color: ${fc} !important; }
@@ -12519,9 +12482,6 @@ console.log('AI Camera Styles app initialized!');
     if (document.getElementById('button-settings-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('resolution-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('aspect-ratio-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('burst-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('timer-settings-submenu')?.style.display === 'flex') return false;
-    if (document.getElementById('motion-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('visible-presets-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('import-resolution-submenu')?.style.display === 'flex') return false;
     if (document.getElementById('tutorial-submenu')?.style.display === 'flex') return false;
