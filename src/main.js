@@ -7743,6 +7743,8 @@ window.addEventListener('sideClick', () => {
     } else {
       resetToCamera();
     }
+  } else {
+    capturePhoto();
   }
 });
 
