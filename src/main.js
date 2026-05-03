@@ -480,103 +480,92 @@ let currentVisiblePresetsIndex = 0;
 let visiblePresetsFilterText = '';
 let visiblePresetsScrollEnabled = true;
 
-// Toast notification for roulette mode
-let rouletteToastTimeout = null;
-function showRouletteToast(presetName) {
-  // Remove existing toast if any
-  const existingToast = document.getElementById('roulette-toast');
-  if (existingToast) existingToast.remove();
-  if (rouletteToastTimeout) clearTimeout(rouletteToastTimeout);
-  
-  const toast = document.createElement('div');
-  toast.id = 'roulette-toast';
-  toast.innerHTML = `<span class="toast-icon">🎰</span><span class="toast-text">${presetName}</span>`;
-  document.body.appendChild(toast);
-  
-  // Trigger animation
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-  
-  rouletteToastTimeout = setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-    rouletteToastTimeout = null;
-  }, 2000);
+// Picker state
+let selectedPickerPreset = null;
+
+function generatePickerOptions() {
+  const sortedPresets = getSortedPresets();
+
+  if (sortedPresets.length === 0) {
+    return { primary: null, alts: [] };
+  }
+
+  // Fisher-Yates shuffle on a copy of indices
+  const indices = Array.from({ length: sortedPresets.length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  // Take up to 3 unique; cycle if fewer than 3 visible
+  const picks = [];
+  for (let i = 0; i < 3; i++) {
+    picks.push(sortedPresets[indices[i % indices.length]]);
+  }
+
+  return { primary: picks[0], alts: picks.slice(1, 3) };
 }
 
-// Roulette modal event handlers
-(function setupRouletteHandlers() {
-  const primary = document.getElementById('roulette-primary');
-  const altTiles = document.querySelectorAll('.roulette-tile.alt');
-  const rerollBtn = document.getElementById('roulette-reroll-btn');
-  const modal = document.getElementById('roulette-modal');
+function renderPicker() {
+  const overlay = document.getElementById('picker-overlay');
+  const primaryEl = document.getElementById('picker-primary');
+  const altEls = document.querySelectorAll('.picker-alt');
+  if (!overlay || !primaryEl) return;
 
-  if (!primary || !rerollBtn || !modal) return;
+  const options = generatePickerOptions();
+  if (!options.primary) {
+    // Empty state
+    primaryEl.querySelector('.picker-name').textContent = '';
+    altEls.forEach(el => { el.querySelector('.picker-name').textContent = ''; });
+    return;
+  }
 
-  function selectPreset(preset) {
-    const m = document.getElementById('roulette-modal');
-    if (!m._rouletteCleanup) return;
-    const resolve = m._rouletteResolve;
-    m._rouletteCleanup();
-    // Find and highlight the tile
-    const allTiles = document.querySelectorAll('.roulette-tile');
-    allTiles.forEach(t => {
-      if (t._preset === preset) t.classList.add('selected');
-    });
-    setTimeout(() => resolve(preset), 300);
+  // Primary
+  primaryEl.querySelector('.picker-name').textContent = options.primary.name;
+  primaryEl._preset = options.primary;
+  primaryEl.classList.add('selected');
+
+  // Alts
+  altEls.forEach((el, i) => {
+    if (options.alts[i]) {
+      el.querySelector('.picker-name').textContent = options.alts[i].name;
+      el._preset = options.alts[i];
+      el.style.display = 'flex';
+    } else {
+      el.querySelector('.picker-name').textContent = '';
+      el._preset = null;
+    }
+  });
+
+  // Clear alt selection
+  altEls.forEach(el => el.classList.remove('selected'));
+
+  // Default selection = primary
+  selectedPickerPreset = options.primary;
+}
+
+(function setupPickerHandlers() {
+  const primary = document.getElementById('picker-primary');
+  const altEls = document.querySelectorAll('.picker-alt');
+  if (!primary) return;
+
+  function selectTile(tile, preset) {
+    // Deselect all
+    primary.classList.remove('selected');
+    altEls.forEach(el => el.classList.remove('selected'));
+    // Select tapped
+    tile.classList.add('selected');
+    selectedPickerPreset = preset;
   }
 
   primary.addEventListener('click', () => {
-    const p = primary._preset;
-    if (p) selectPreset(p);
+    if (primary._preset) selectTile(primary, primary._preset);
   });
 
-  altTiles.forEach(tile => {
+  altEls.forEach(tile => {
     tile.addEventListener('click', () => {
-      const p = tile._preset;
-      if (p) selectPreset(p);
+      if (tile._preset) selectTile(tile, tile._preset);
     });
-  });
-
-  rerollBtn.addEventListener('click', () => {
-    const m = document.getElementById('roulette-modal');
-    if (!m._rouletteOptions) return;
-
-    // Clear old timer
-    clearTimeout(m._rouletteTimer);
-
-    // Generate new options
-    const newOptions = generateRouletteOptions();
-    if (!newOptions.primary) return;
-    m._rouletteOptions = newOptions;
-
-    // Update DOM
-    document.querySelector('#roulette-primary .roulette-name').textContent = newOptions.primary.name;
-    primary._preset = newOptions.primary;
-
-    const alts = document.querySelectorAll('.roulette-tile.alt');
-    alts.forEach((tile, i) => {
-      tile.querySelector('.roulette-name').textContent = newOptions.alts[i].name;
-      tile._preset = newOptions.alts[i];
-    });
-
-    // Shuffle animation
-    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
-    const content = modal.querySelector('.roulette-content');
-    if (content) {
-      content.classList.remove('shuffling');
-      void content.offsetWidth; // force reflow
-      content.classList.add('shuffling');
-    }
-
-    // Reset auto-select timer
-    m._rouletteTimer = setTimeout(() => {
-      const r = m._rouletteResolve;
-      m._rouletteCleanup();
-      primary.classList.add('selected');
-      setTimeout(() => r(newOptions.primary), 300);
-    }, 5000);
   });
 })();
 
@@ -878,6 +867,11 @@ async function showGallery(renderOnly = false) {
     if (leftCamCarousel) {
       leftCamCarousel.style.display = 'none';
     }
+    // Hide picker
+    const pickerOverlayEl2 = document.getElementById('picker-overlay');
+    if (pickerOverlayEl2) {
+      pickerOverlayEl2.style.display = 'none';
+    }
   }
   const modal = document.getElementById('gallery-modal');
   const grid = document.getElementById('gallery-grid');
@@ -1118,7 +1112,14 @@ async function hideGallery() {
     leftCamCarousel.style.display = 'flex';
     leftCamCarousel.classList.remove('hidden');
   }
-  
+
+  // Restore picker
+  const pickerOverlayEl = document.getElementById('picker-overlay');
+  if (pickerOverlayEl) {
+    renderPicker();
+    pickerOverlayEl.style.display = 'flex';
+  }
+
   await reinitializeCamera(); // Re-initialize fully so camera switch works after gallery
   
   // Restore status element display (in case it was hidden by upload function)
@@ -3915,30 +3916,6 @@ function getRandomPresetIndex() {
   // Otherwise pick from all visible presets
   const randomPreset = sortedPresets[Math.floor(Math.random() * sortedPresets.length)];
   return CAMERA_PRESETS.findIndex(p => p === randomPreset);
-}
-
-// Generate 5 unique random presets for roulette modal
-function generateRouletteOptions() {
-  const sortedPresets = getSortedPresets();
-
-  if (sortedPresets.length === 0) {
-    return { primary: null, alts: [] };
-  }
-
-  // Fisher-Yates shuffle on a copy of indices
-  const indices = Array.from({ length: sortedPresets.length }, (_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-
-  // Take up to 5 unique; cycle if fewer than 5 visible
-  const picks = [];
-  for (let i = 0; i < 5; i++) {
-    picks.push(sortedPresets[indices[i % indices.length]]);
-  }
-
-  return { primary: picks[0], alts: picks.slice(1) };
 }
 
 function showVisiblePresetsSubmenu() {
@@ -6981,6 +6958,13 @@ async function initCamera() {
         leftCamCarousel.style.display = 'flex';
       }
 
+    // Initialize picker overlay
+    const pickerOverlay = document.getElementById('picker-overlay');
+    if (pickerOverlay) {
+      renderPicker();
+      pickerOverlay.style.display = 'flex';
+    }
+
     updatePresetDisplay();
     
     // Build the styles menu now that presets are loaded
@@ -7217,80 +7201,21 @@ async function resumeCamera() {
   }
 }
 
-// Show roulette modal and return Promise that resolves with selected preset
-function showRouletteModal() {
-  return new Promise((resolve) => {
-    const options = generateRouletteOptions();
-    if (!options.primary) {
-      resolve(null);
-      return;
-    }
-
-    // Populate DOM
-    document.querySelector('#roulette-primary .roulette-name').textContent = options.primary.name;
-    const altTiles = document.querySelectorAll('.roulette-tile.alt');
-    altTiles.forEach((tile, i) => {
-      tile.querySelector('.roulette-name').textContent = options.alts[i].name;
-    });
-
-    // Store presets on elements for click handlers
-    document.getElementById('roulette-primary')._preset = options.primary;
-    altTiles.forEach((tile, i) => {
-      tile._preset = options.alts[i];
-    });
-
-    // Clear previous selection state
-    document.querySelectorAll('.roulette-tile').forEach(t => t.classList.remove('selected'));
-
-    const modal = document.getElementById('roulette-modal');
-    const content = modal.querySelector('.roulette-content');
-    if (content) content.classList.remove('shuffling');
-
-    modal.style.display = 'flex';
-
-    // 5s auto-select timer
-    let autoSelectTimer = setTimeout(() => {
-      cleanup();
-      document.getElementById('roulette-primary').classList.add('selected');
-      setTimeout(() => resolve(options.primary), 300);
-    }, 5000);
-
-    function cleanup() {
-      clearTimeout(autoSelectTimer);
-      modal.style.display = 'none';
-      modal._rouletteResolve = null;
-      modal._rouletteOptions = null;
-      modal._rouletteTimer = null;
-      modal._rouletteCleanup = null;
-    }
-
-    // Store resolve/cleanup on modal for event handlers (U4)
-    modal._rouletteResolve = resolve;
-    modal._rouletteOptions = options;
-    modal._rouletteTimer = autoSelectTimer;
-    modal._rouletteCleanup = cleanup;
-  });
-}
-
 // Capture photo and send to WebSocket
-async function capturePhoto() {
+function capturePhoto() {
   if (!stream) return;
 
-  const previousIndex = currentPresetIndex;
-
   if (isRandomMode) {
-    // Roulette path: show modal, await user selection
-    const selectedPreset = await showRouletteModal();
-    if (!selectedPreset) return;
-    currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPreset);
-    showStyleReveal(selectedPreset.name);
+    // Picker path: use selected picker preset, or primary as default
+    if (selectedPickerPreset) {
+      currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPickerPreset);
+    } else {
+      currentPresetIndex = getRandomPresetIndex();
+    }
   } else {
     currentPresetIndex = getRandomPresetIndex();
-    if (currentPresetIndex !== previousIndex) {
-      showRouletteToast(CAMERA_PRESETS[currentPresetIndex].name);
-    }
-    showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
   }
+  showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
 
   // Only resize if dimensions actually changed to save CPU
   if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -7353,6 +7278,10 @@ async function capturePhoto() {
   const quality = currentResolutionIndex >= 2 ? 0.7 : 0.8;
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   capturedImage.src = dataUrl;
+  // Hide picker during preview
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay) pickerOverlay.style.display = 'none';
+
   capturedImage.style.display = 'block';
   capturedImage.style.transform = 'none';
   video.style.display = 'none';
@@ -7948,7 +7877,14 @@ window.addEventListener('scrollUp', () => {
     scrollQueueUp();
     return;
   }
-  
+
+  // Picker shuffle — intercept camera cycling when picker is visible
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay && pickerOverlay.style.display === 'flex') {
+    renderPicker();
+    return;
+  }
+
   // Camera preset cycling
   if (!stream || capturedImage.style.display === 'block') return;
   
@@ -8209,29 +8145,34 @@ if (typeof PluginMessageHandler !== 'undefined') {
 // Reset button handler
 function resetToCamera() {
   capturedImage.style.display = 'none';
-  
-  // Don't stop/restart motion detection if it's active with continuous mode
 
   capturedImage.style.transform = 'none';
   video.style.display = 'block';
   resetButton.style.display = 'none';
-  
+
   const cameraButton = document.getElementById('camera-button');
   if (cameraButton && availableCameras.length > 1) {
     cameraButton.style.display = 'flex';
   }
-  
+
   const resolutionButton = document.getElementById('resolution-button');
   if (resolutionButton) {
     resolutionButton.style.display = 'flex';
   }
-  
+
+  // Restore picker
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay) {
+    renderPicker();
+    pickerOverlay.style.display = 'flex';
+  }
+
   setTimeout(() => {
     applyZoom(currentZoom);
   }, 50);
-  
+
   updatePresetDisplay();
-  
+
   // Restart QR detection when returning to camera view
   startQRDetection();
 }
@@ -12590,6 +12531,7 @@ console.log('AI Camera Styles app initialized!');
   function toggleCarousels() {
     const leftCarousel = document.getElementById('left-cam-carousel');
     const rightCarousel = document.querySelector('.mode-carousel');
+    const pickerOverlay = document.getElementById('picker-overlay');
 
     leftVisible = !leftVisible;
     rightVisible = !rightVisible;
@@ -12606,6 +12548,9 @@ console.log('AI Camera Styles app initialized!');
         rightCarousel.style.transform = 'translateX(calc(100% + 8px))';
         rightCarousel.style.pointerEvents = 'none';
       }
+    }
+    if (pickerOverlay) {
+      pickerOverlay.style.display = leftVisible ? 'flex' : 'none';
     }
     lastTapTime = 0;
   }
