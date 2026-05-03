@@ -3512,11 +3512,9 @@ async function loadStyles() {
         }
     }
     
-    loadLastUsedStyle(); 
-    
     loadResolution();
     // loadWhiteBalanceSettings();
-    
+
     // Initialize CAMERA_PRESETS from presets.json
     try {
       const allFactoryPresets = await presetImporter.loadPresetsFromFile();
@@ -3528,6 +3526,8 @@ async function loadStyles() {
       console.log('Could not load presets:', e);
       CAMERA_PRESETS = [];
     }
+
+    loadLastUsedStyle();
     
     // Load visible presets — runs for all users every startup
     const visibleJson = localStorage.getItem(VISIBLE_PRESETS_KEY);
@@ -9018,6 +9018,18 @@ function updatePresetDisplay() {
     currentPresetIndex = Math.max(0, Math.min(currentPresetIndex, CAMERA_PRESETS.length - 1));
     const currentPreset = CAMERA_PRESETS[currentPresetIndex];
 
+    // Clean display name: strip leading #, normalize case
+    function getCleanPresetName(preset) {
+        let name = preset.name || '';
+        name = name.replace(/^#/, '');
+        // Convert ALL_CAPS (likely hashtag-style) to title case
+        if (/^[A-Z_]+$/.test(name.replace(/\s/g, ''))) {
+            name = name.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        return name.trim();
+    }
+    const cleanName = getCleanPresetName(currentPreset);
+
     if (videoTrack) {
         try {
             const constraints = {};
@@ -9034,9 +9046,9 @@ function updatePresetDisplay() {
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
         statusElement.textContent = `📑 LAYER (${cameraLayerPresets.length} presets)`;
     } else if (manualOptionsMode) {
-        statusElement.textContent = `🎯 MANUALLY SELECT | Style: ${currentPreset.name}`;
+        statusElement.textContent = `🎯 MANUALLY SELECT | Style: ${cleanName}`;
     } else {
-        statusElement.textContent = `Style: ${currentPreset.name}`;
+        statusElement.textContent = `Style: ${cleanName}`;
     }
     
     // Show style reveal on screen (middle text)
@@ -9045,7 +9057,7 @@ function updatePresetDisplay() {
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
       showStyleReveal('📑 LAYERS');
     } else {
-      showStyleReveal(currentPreset.name);
+      showStyleReveal(cleanName);
     }
 
     localStorage.setItem(LAST_USED_PRESET_KEY, currentPresetIndex.toString());
