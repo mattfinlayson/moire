@@ -1,7 +1,7 @@
 ---
 title: feat: Simplify camera UX — remove modes, replace roulette with pre-capture picker
 type: feat
-status: active
+status: completed
 date: 2026-05-02
 origin: docs/brainstorms/camera-ux-simplification-and-polish.md
 ---
