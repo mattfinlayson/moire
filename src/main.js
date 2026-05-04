@@ -536,6 +536,18 @@ function toPluginImageBase64(imageBase64) {
   return imageBase64.startsWith('data:') ? imageBase64.split(',', 2)[1] : imageBase64;
 }
 
+function buildMagicGalleryPayload(imageBase64, prompt) {
+  return {
+    pluginId: 'com.r1.pixelart',
+    message: prompt && prompt.trim() ? prompt : 'Transform this photo into a magical variation.',
+    useLLM: true,
+    useSerpAPI: false,
+    wantsR1Response: false,
+    wantsJournalEntry: true,
+    imageBase64: toPluginImageBase64(imageBase64)
+  };
+}
+
 function clearPhotoPreviewReturnTimer() {
   if (photoPreviewReturnTimer) {
     clearTimeout(photoPreviewReturnTimer);
@@ -1806,8 +1818,7 @@ async function submitMagicTransform() {
     const resizedImageBase64 = await resizeImageForSubmission(item.imageBase64);
     const magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets);
     if (typeof PluginMessageHandler !== 'undefined') {
-      const layerMagicPayload = { pluginId: 'com.r1.pixelart', imageBase64: toPluginImageBase64(resizedImageBase64) };
-      if (magicPrompt && magicPrompt.trim()) layerMagicPayload.message = magicPrompt;
+      const layerMagicPayload = buildMagicGalleryPayload(resizedImageBase64, magicPrompt);
       PluginMessageHandler.postMessage(JSON.stringify(layerMagicPayload));
       alert('Magic transform submitted! You can submit again with a different prompt.');
     } else {
@@ -1865,13 +1876,7 @@ async function submitMagicTransform() {
     } else {
       magicPrompt = getFinalPrompt(matchedPreset || {name: presetName, message: prompt, options: [], randomizeOptions: false, additionalInstructions: ''}, manualSelection);
     }
-    const magicPayload = {
-      pluginId: 'com.r1.pixelart',
-      imageBase64: toPluginImageBase64(resizedImageBase64)
-    };
-    if (magicPrompt && magicPrompt.trim()) {
-      magicPayload.message = magicPrompt;
-    }
+    const magicPayload = buildMagicGalleryPayload(resizedImageBase64, magicPrompt);
     PluginMessageHandler.postMessage(JSON.stringify(magicPayload));
 
     // GALLERY CREDIT GAME — earn 1 credit if this is the first time using this imported preset
@@ -2041,13 +2046,7 @@ async function processBatchImages(preset, imagesToProcess) {
       const resizedImageBase64 = await resizeImageForSubmission(image.imageBase64);
       
       if (typeof PluginMessageHandler !== 'undefined') {
-        const batchPayload = {
-          pluginId: 'com.r1.pixelart',
-          imageBase64: toPluginImageBase64(resizedImageBase64)
-        };
-        if (finalPrompt && finalPrompt.trim()) {
-          batchPayload.message = finalPrompt;
-        }
+        const batchPayload = buildMagicGalleryPayload(resizedImageBase64, finalPrompt);
         PluginMessageHandler.postMessage(JSON.stringify(batchPayload));
       }
       
@@ -2903,13 +2902,7 @@ async function applyMultiplePresets() {
       const finalPrompt = getFinalPrompt(preset, manualSelection);
       
       if (typeof PluginMessageHandler !== 'undefined') {
-        const multiPayload = {
-          pluginId: 'com.r1.pixelart',
-          imageBase64: toPluginImageBase64(resizedImageBase64)
-        };
-        if (finalPrompt && finalPrompt.trim()) {
-          multiPayload.message = finalPrompt;
-        }
+        const multiPayload = buildMagicGalleryPayload(resizedImageBase64, finalPrompt);
         PluginMessageHandler.postMessage(JSON.stringify(multiPayload));
       }
       
@@ -5102,13 +5095,7 @@ async function applyGalleryLayerPresets() {
   const resizedImageBase64 = await resizeImageForSubmission(image.imageBase64);
 
   if (typeof PluginMessageHandler !== 'undefined') {
-    const layerPayload = {
-      pluginId: 'com.r1.pixelart',
-      imageBase64: toPluginImageBase64(resizedImageBase64)
-    };
-    if (combinedPrompt && combinedPrompt.trim()) {
-      layerPayload.message = combinedPrompt;
-    }
+    const layerPayload = buildMagicGalleryPayload(resizedImageBase64, combinedPrompt);
     PluginMessageHandler.postMessage(JSON.stringify(layerPayload));
     // Update the viewer header to show LAYER is active
 
@@ -6519,13 +6506,7 @@ async function syncQueuedPhotos() {
         if (item.isCombined) window.isCombinedMode = true;
         const syncedPrompt = getFinalPrompt(item.preset, item.manualSelection || null);
         if (item.isCombined) window.isCombinedMode = false;
-        const syncPayload = {
-          pluginId: 'com.r1.pixelart',
-          imageBase64: toPluginImageBase64(item.imageBase64)
-        };
-        if (syncedPrompt && syncedPrompt.trim()) {
-          syncPayload.message = syncedPrompt;
-        }
+        const syncPayload = buildMagicGalleryPayload(item.imageBase64, syncedPrompt);
         PluginMessageHandler.postMessage(JSON.stringify(syncPayload));
       }
       
