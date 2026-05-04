@@ -3137,8 +3137,7 @@ function updateMenuSelection() {
             mainMenuFilterByCategory = cat;
           }
           currentMenuIndex = 0;
-          populateStylesList();
-        };
+                  };
         
         categoryHint.appendChild(categorySpan);
         
@@ -3782,8 +3781,7 @@ function saveFavoriteStyle(styleName) {
     const scrollContainer = document.querySelector('.styles-menu-scroll-container');
     const scrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
     
-    populateStylesList();
-    
+        
     // Restore scroll position after repopulating
     if (scrollContainer) {
         scrollContainer.scrollTop = scrollPosition;
@@ -4786,8 +4784,7 @@ async function saveCustomPreset() {
   
   // Refresh menu if it's open
   if (isMenuOpen) {
-    populateStylesList();
-  }
+      }
 }
 
 // Delete custom preset from builder
@@ -4867,8 +4864,7 @@ async function deleteCustomPreset() {
   
   // Refresh menu if open
   if (isMenuOpen) {
-    populateStylesList();
-  }
+      }
 }
 
 function populateVisiblePresetsList() {
@@ -5006,8 +5002,7 @@ function toggleVisiblePreset(presetName, isVisible) {
   
   // Refresh main menu if open
   if (isMenuOpen) {
-    populateStylesList();
-  }
+      }
 }
 
 function updateVisiblePresetsDisplay() {
@@ -6649,8 +6644,7 @@ async function initCamera() {
     updatePresetDisplay();
     
     // Build the styles menu now that presets are loaded
-    populateStylesList();
-    
+        
     // Show online indicator for 3 seconds
     const connectionStatus = document.getElementById('connection-status');
     if (connectionStatus && isOnline) {
@@ -7991,8 +7985,7 @@ function showUnifiedMenu() {
     resetToCamera();
   }
   
-  populateStylesList();
-  // Initialize styles count display
+    // Initialize styles count display
   const stylesCountElement = document.getElementById('styles-count');
   if (stylesCountElement) {
     const { favorites, regular } = getStylesLists();
@@ -9810,7 +9803,6 @@ window.addEventListener('load', () => {
       saveVisiblePresets();
       populateVisiblePresetsList();
       updateVisiblePresetsDisplay();
-      if (isMenuOpen) populateStylesList();
     });
   }
   
@@ -9821,7 +9813,6 @@ window.addEventListener('load', () => {
       saveVisiblePresets();
       populateVisiblePresetsList();
       updateVisiblePresetsDisplay();
-      if (isMenuOpen) populateStylesList();
     });
   }
   
@@ -10471,8 +10462,7 @@ const result = await presetImporter.import();
           saveVisiblePresets();
           
           // Update menu display
-          populateStylesList();
-          updateVisiblePresetsDisplay();
+                    updateVisiblePresetsDisplay();
           
           // Update styles count
           const stylesCountElement = document.getElementById('styles-count');
@@ -10648,8 +10638,7 @@ const result = await presetImporter.import();
 
   makeFilterBlurBtn('style-filter-blur-btn', 'style-filter', () => {
     styleFilterText = '';
-    populateStylesList();
-  });
+      });
 
   makeFilterBlurBtn('visible-presets-filter-blur-btn', 'visible-presets-filter', () => {
     visiblePresetsFilterText = '';
@@ -10670,8 +10659,7 @@ const result = await presetImporter.import();
       // Debounce filter updates
       if (filterDebounceTimeout) clearTimeout(filterDebounceTimeout);
       filterDebounceTimeout = setTimeout(() => {
-        populateStylesList();
-      }, 150); // Wait 150ms after user stops typing
+              }, 150); // Wait 150ms after user stops typing
     });
     
     // Hide category footer when field is focused (keyboard appears)
@@ -10877,8 +10865,7 @@ const result = await presetImporter.import();
             saveVisiblePresets();
             
             // Update menu
-            populateStylesList();
-            updateVisiblePresetsDisplay();
+                        updateVisiblePresetsDisplay();
             
             // Re-check accurately how many updates remain after import
             await recheckForUpdates();
@@ -11837,8 +11824,7 @@ document.getElementById('factory-reset-button').addEventListener('click', async 
         saveVisiblePresets();
     }
     
-    populateStylesList();
-    
+        
     const successMessage = hasImportedPresets
       ? 'All custom presets deleted, modifications cleared, and queue reset. Reset to imported presets!'
       : 'All custom presets deleted, modifications cleared, and queue reset!';
