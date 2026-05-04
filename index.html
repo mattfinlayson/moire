@@ -26,7 +26,6 @@
                 </div>
             </div>
         </div>
-        <p id="status" class="status-text" style="display: none;">Initializing camera...</p>
         <button id="reset-button" class="reset-button" style="display: none;">New Photo</button>
         <button id="camera-button" class="camera-button" title="Switch Camera" style="display: none;">📷</button>
         <!-- Left carousel: Menu, Gallery, Master Prompt, Options — default visible -->
@@ -91,16 +90,11 @@
                 <!-- Styles Section -->
                 <div class="menu-section">
     <h3 class="menu-section-title">AI Styles (<span id="styles-count">0</span>)</h3>
-    <div class="filter-row">
-        <input type="text" id="style-filter" class="style-filter" placeholder="Filter styles...">
-        <button class="filter-blur-btn" id="style-filter-blur-btn" title="Dismiss keyboard">×</button>
-    </div>
                     <div id="menu-styles-list" class="menu-list">
                         <!-- Styles will be dynamically added here -->
                     </div>
                 </div>
                 </div>
-                <div id="menu-category-hint" class="menu-category-footer" style="display: none;"></div>
             </div>
         </div>
 
@@ -291,15 +285,10 @@
                     <button id="visible-presets-deselect-all" class="batch-control-button" style="flex: 1;">Deselect All</button>
                 </div>
             </div>
-            <div class="filter-row">
-                <input type="text" id="visible-presets-filter" class="style-filter" placeholder="Filter presets...">
-                <button class="filter-blur-btn" id="visible-presets-filter-blur-btn" title="Dismiss keyboard">×</button>
-            </div>
             <div id="visible-presets-list" class="menu-list">
                 <!-- Presets will be dynamically added here -->
             </div>
         </div>
-        <div id="visible-presets-category-hint" class="visible-presets-footer" style="display: none;"></div>
     </div>
 </div>
 
@@ -784,8 +773,7 @@
                             <strong>Import Resolution:</strong> Select import resolution for external images imported through the gallery.<br>
                             <strong>Reset Database:</strong> Nuclear Option. Only imported presets remain. All custom work deleted.<br>
                             <strong>⚙️ Button Settings:</strong> The main camera screen and gallery image viewer screen carousel buttons are default solid and black. In this section, you may select different colors for buttons and text in the main camera screen and in the gallery image viewer screen. You may also select opacity (default solid) and set how many taps to hide/reveal the buttons in each section under their appropriate tab.<br>
-                            <strong>Tutorial:</strong> What you are currently reading. This tutorial includes the audio tour on the top of the quick navigation. Use the top search field to search for key words or topics. Click within the search field to either speak your search (using the rabbit r1's side button) or type your search. Once you finish speaking or typing your search, click on the x next to the filter text box to remove the keyboard. If you double click on the x, it resets the filter text box. 
-                       </p>
+                            <strong>Tutorial:</strong> What you are currently reading. This tutorial includes the audio tour on the top of the quick navigation.                        </p>
                     </div>
 
                     <!-- Tips & Tricks -->
@@ -793,8 +781,7 @@
                         <h4 class="tutorial-heading">💡 Tips & Tricks</h4>
                         <p class="tutorial-text">
                             • <strong>Add to Favorites:</strong> In the menu, tap the star (☆) next to presets you love<br>
-                            • <strong>Filter Presets:</strong> Use the search box to quickly find styles. Because of the size of the r1 screen, if you click on the search bar, a keyboard appears. You can either speak your search (using the rabbit r1's side button) or type your search. Once you finish speaking or typing your search, click on the x next to the filter text box to remove the keyboard. If you double click on the x, it resets the filter text box.<br>
-                            • <strong>Pinch to Zoom:</strong> Zoom in/out on the camera feed. Gallery also supports pinch to zoom in the individual image viewer.<br>
+• <strong>Pinch to Zoom:</strong> Zoom in/out on the camera feed. Gallery also supports pinch to zoom in the individual image viewer.<br>
                             • <strong>Aspect Ratio change:</strong> Get the best results with either 1:1 or 16:9. The default is None, but we strongly recommend setting it to either 1:1 or 16:9 to avoid image cropping.<br>
                             • <strong>PROMPT Button:</strong> In the gallery image viewer, tap PROMPT to create or edit the preset associated with your image. No preset loaded opens the builder. A loaded preset opens the editor automatically.<br>
                             • <strong>Multiple Presets:</strong> Apply several styles to one photo sequentially<br>
@@ -813,7 +800,6 @@
 
                             <strong>Hiding/Reveal Buttons:</strong> There are left and right carousels in the main camera screen and the image viewer in the gallery.  Single click the screen to hide/reveal the carousels. You may adjust these settings (as well as the opacity of the carousel buttons) within settings (in the Main Camera Screen and Gallery Image Viewer Screen subsections).<br>
 
-                            <strong>Category Searching:</strong> All presets are categorized. You can see these categories at the bottom of the Visible Preset list menu when a particular preset is highlighted. Therefore, if you see a preset that you like, you can do a search for similar presets that share that category (*best to do this in the Visible Preset Menu). You can also click on the desired category on the bottom to filter all presets in that category as well.<br>
 
                             <strong>Master Prompt:</strong> Append text to every AI transformation to customize. Many presets benefit from this feature. For example, if you activate Master Prompt (this must be done first) and add two lines: The first line- name: Ron G and the second line- it is Easter. Then you select preset HAPPY HOLIDAYS...this will transform the subject of the picture into a picture of the subject wearing an Easter bunny costume (preferably pink) and the resulting picture will be captioned with the name Ron G. Since all presets are categorized you can do a search for "master" or "master prompt" and presets that benefit from master prompting appear (*best to do this in the Visible Preset Menu). Regardless of designation, all images may be affected by the master prompt.
                         </p>
@@ -1080,14 +1066,9 @@ All of the presets are optimized to avoid "camera ran dry" or "content filter" i
         <button id="close-preset-selector" class="close-button">×</button>
     </div>
 </div>
-                <div class="filter-row" style="padding-right: calc(8vw + 2vw);">
-                    <input type="text" id="preset-filter" class="style-filter" placeholder="Filter presets...">
-                    <button class="filter-blur-btn" id="preset-filter-blur-btn" title="Dismiss keyboard">×</button>
-                </div>
                 <div id="preset-list" class="preset-list">
                     <!-- Presets will be dynamically added here -->
                 </div>
-                <div id="preset-selector-category-hint" class="preset-selector-category-footer" style="display: none;"></div>
             </div>
         </div>
 

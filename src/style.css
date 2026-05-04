@@ -116,23 +116,6 @@ html, body {
 }
 
 /* Status text */
-.status-text {
-    position: absolute;
-    bottom: 1vh;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 3.5vw;
-    color: #FE5F00;
-    background-color: rgba(0, 0, 0, 0.8);
-    padding: 1.5vw;
-    margin: 0 1vw;
-    border-radius: 2vw;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: 100;
-}
-
 /* Style Name Reveal */
 .style-reveal {
     position: absolute;
@@ -1281,10 +1264,6 @@ button:disabled {
 @media (min-width: 480px) {
     html, body {
         font-size: 16px;
-    }
-    
-    .status-text {
-        font-size: 14px;
     }
     
     .style-reveal {
@@ -2854,53 +2833,8 @@ button:disabled {
     text-align: center;
 }
 
-.visible-presets-footer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 3vw;
-    background-color: #000;
-    color: #fff;
-    font-size: 4.5vw;
-    text-align: center;
-    border-top: 1px solid #FE5F00;
-    z-index: 100;
-    width: 100%;
-    box-sizing: border-box;
-}
 
-.menu-category-footer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 3vw;
-    background-color: #000;
-    color: #fff;
-    font-size: 4.5vw;
-    text-align: center;
-    border-top: 1px solid #FE5F00;
-    z-index: 100;
-    width: 100%;
-    box-sizing: border-box;
-}
 
-.preset-selector-category-footer {
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 3vw;
-    background-color: #000;
-    color: #fff;
-    font-size: 4.5vw;
-    text-align: center;
-    border-top: 1px solid #FE5F00;
-    z-index: 100;
-    width: 100%;
-    box-sizing: border-box;
-}
 
 /* Batch Mode - VERY COMPACT */
 .batch-toggle-button {

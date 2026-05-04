@@ -32,7 +32,7 @@ let DEFAULT_PRESETS = [];
 let totalFactoryPresetCount = 0;
 
 // Camera elements
-let video, canvas, capturedImage, statusElement, resetButton;
+let video, canvas, capturedImage, resetButton;
 let stream = null;
 let videoTrack = null;
 
@@ -304,15 +304,7 @@ let galleryLayerImageId = null; // Set when opening Layer from the gallery viewe
 
 // Style filter
 
-let styleFilterText = '';
-let presetFilterText = '';
 let presetListScrollPosition = 0;
-let visiblePresetsFilterByCategory = ''; // Track selected category filter
-let mainMenuFilterByCategory = ''; // Track selected category filter for main menu
-let galleryPresetFilterByCategory = ''; // Track selected category filter for gallery preset selector
-let isStyleFilterFocused = false; // ADD THIS
-let isVisiblePresetsFilterFocused = false; // ADD THIS
-let isPresetFilterFocused = false; // ADD THIS
 
 // QR Code detection variables
 
@@ -450,8 +442,6 @@ let photoQueue = [];
 let isSyncing = false;
 
 // Scroll debouncing variables
-let scrollTimeout = null;
-let lastScrollTime = 0;
 const SCROLL_DEBOUNCE_MS = 500;
 const QUEUE_STORAGE_KEY = 'r1_camera_queue';
 
@@ -468,7 +458,6 @@ const VISIBLE_PRESETS_KEY = 'r1_camera_visible_presets';
 let visiblePresets = []; // Array of preset names that should be shown
 let isVisiblePresetsSubmenuOpen = false;
 let currentVisiblePresetsIndex = 0;
-let visiblePresetsFilterText = '';
 let visiblePresetsScrollEnabled = true;
 
 // Picker state
@@ -1113,23 +1102,17 @@ async function hideGallery() {
 
   await reinitializeCamera(); // Re-initialize fully so camera switch works after gallery
   
-  // Restore status element display (in case it was hidden by upload function)
-  if (statusElement) {
-    statusElement.style.display = 'block';
-  }
   
   // Re-show the style reveal footer
   if (noMagicMode) {
-    if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
-    showStyleReveal('⚡ NO MAGIC MODE');
+        showStyleReveal('⚡ NO MAGIC MODE');
   } else if (isRandomMode || isMultiPresetMode) {
     let modeName = '';
     if (isRandomMode) modeName = '🎲 Random Mode';
-    if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
-    showStyleReveal(modeName);
+        showStyleReveal(modeName);
   } else {
     // Update both footer AND popup immediately
-    updatePresetDisplay();
+    notifyPresetChange();
   }
 }
 
@@ -1325,17 +1308,10 @@ function hidePresetSelector() {
   }
   
   document.getElementById('preset-selector').style.display = 'none';
-  presetFilterText = '';
-  galleryPresetFilterByCategory = ''; // Clear category filter
-  document.getElementById('preset-filter').value = '';
   isPresetSelectorOpen = false;
   currentPresetIndex_Gallery = 0;
   
   // Hide category hint
-  const categoryHint = document.getElementById('preset-selector-category-hint');
-  if (categoryHint) {
-    categoryHint.style.display = 'none';
-  }
 
   // Clear special mode flags
   isBatchPresetSelectionActive = false;
@@ -1391,51 +1367,6 @@ function updatePresetSelection() {
     // Show category hint with individually clickable categories
     const presetName = currentItem.querySelector('.preset-name').textContent;
     const preset = CAMERA_PRESETS.find(p => p.name === presetName);
-    const categoryHint = document.getElementById('preset-selector-category-hint');
-    if (categoryHint && preset && preset.category && !isPresetFilterFocused) {
-      // Clear previous content
-      categoryHint.innerHTML = '';
-      categoryHint.style.display = 'block';
-      
-      // Create a clickable span for each category
-      preset.category.forEach((cat, index) => {
-        const categorySpan = document.createElement('span');
-        categorySpan.textContent = cat;
-        categorySpan.style.cursor = 'pointer';
-        categorySpan.style.padding = '0 2px';
-        
-        // Highlight if this category is currently being filtered
-        if (galleryPresetFilterByCategory === cat) {
-          categorySpan.style.textDecoration = 'underline';
-          categorySpan.style.fontWeight = 'bold';
-        }
-        
-        // Make each category clickable
-        categorySpan.onclick = (e) => {
-          e.stopPropagation();
-          // If already filtering by this category, clear the filter
-          if (galleryPresetFilterByCategory === cat) {
-            galleryPresetFilterByCategory = '';
-          } else {
-            // Filter by this category
-            galleryPresetFilterByCategory = cat;
-          }
-          currentPresetIndex_Gallery = 0;
-          populatePresetList();
-        };
-        
-        categoryHint.appendChild(categorySpan);
-        
-        // Add comma separator if not the last category
-        if (index < preset.category.length - 1) {
-          const comma = document.createElement('span');
-          comma.textContent = ', ';
-          categoryHint.appendChild(comma);
-        }
-      });
-    } else if (categoryHint) {
-      categoryHint.style.display = 'none';
-    }
   }
 }
 
@@ -1677,23 +1608,8 @@ function populatePresetList() {
   
   const filtered = getVisiblePresets().filter(preset => {
     // First apply text search filter
-    if (presetFilterText) {
-      const searchText = presetFilterText.toLowerCase();
-      const categoryMatch = preset.category && preset.category.some(cat => cat.toLowerCase().includes(searchText));
-      const optionsMatch = (
-        (preset.options && preset.options.some(o => o.text && o.text.toLowerCase().includes(searchText))) ||
-        (preset.optionGroups && preset.optionGroups.some(g => g.title && g.title.toLowerCase().includes(searchText) || g.options && g.options.some(o => o.text && o.text.toLowerCase().includes(searchText))))
-      );
-      const textMatch = preset.name.toLowerCase().includes(searchText) || 
-             (preset.message || '').toLowerCase().includes(searchText) ||
-             categoryMatch || optionsMatch;
-      if (!textMatch) return false;
-    }
     
     // Then apply category filter if active
-    if (galleryPresetFilterByCategory) {
-      return preset.category && preset.category.includes(galleryPresetFilterByCategory);
-    }
     
     return true;
   });
@@ -2177,11 +2093,10 @@ function toggleCameraLiveCombineMode() {
   if (btn) {
     if (window.isCameraLiveCombineMode) {
       btn.classList.add('combine-active');
-      if (statusElement) statusElement.textContent = '🖼️🖼️ Combine ON — press side button to take first photo';
-      showStyleReveal('🖼️🖼️ COMBINE ON\nTAKE 1ST PHOTO');
+            showStyleReveal('🖼️🖼️ COMBINE ON\nTAKE 1ST PHOTO');
     } else {
       btn.classList.remove('combine-active');
-      if (statusElement) updatePresetDisplay();
+            notifyPresetChange();
     }
   }
 }
@@ -2256,8 +2171,7 @@ async function buildCombinedImageBase64(base64A, base64B) {
 // Combines them and sends the result with the appropriate preset.
 async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverride, isVoiceMode) {
   try {
-    statusElement.textContent = '🖼️ Combining photos...';
-
+    
     const combinedBase64 = await buildCombinedImageBase64(photo1Base64, photo2Base64);
     // Combined image is kept in memory only — not saved to the gallery.
     // The two individual photos were already saved to the gallery when captured.
@@ -2308,11 +2222,9 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
       updateQueueDisplay();
 
       if (isOnline && !noMagicMode) {
-        statusElement.textContent = `Multi combine: sending ${presetsToApply.length} presets...`;
-        if (!isSyncing) syncQueuedPhotos();
+                if (!isSyncing) syncQueuedPhotos();
       } else {
-        statusElement.textContent = `${presetsToApply.length} combined presets queued`;
-      }
+              }
 
     } else if (isCameraLayerActive && cameraLayerPresets.length > 0 && !presetOverride) {
       // Layer combine: merge all layer presets into ONE prompt, apply combine preamble to primary
@@ -2335,11 +2247,9 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
       updateQueueDisplay();
 
       if (isOnline && !noMagicMode) {
-        statusElement.textContent = `📑🖼️🖼️ Layer combine sent!`;
-        if (!isSyncing) syncQueuedPhotos();
+                if (!isSyncing) syncQueuedPhotos();
       } else {
-        statusElement.textContent = `📑🖼️🖼️ Layer combine queued`;
-      }
+              }
 
         // Layer mode persists — user must tap the lit button to clear it
 
@@ -2370,11 +2280,9 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
       updateQueueDisplay();
 
       if (isOnline && !noMagicMode) {
-        statusElement.textContent = '🖼️🖼️ Combined photo sent!';
-        if (!isSyncing) syncQueuedPhotos();
+                if (!isSyncing) syncQueuedPhotos();
       } else {
-        statusElement.textContent = '🖼️🖼️ Combined photo queued';
-      }
+              }
     }
 
     // Clean up combine mode state
@@ -2385,8 +2293,7 @@ async function finalizeCameraLiveCombine(photo1Base64, photo2Base64, presetOverr
 
   } catch (err) {
     console.error('Camera live combine failed:', err);
-    statusElement.textContent = '❌ Combine failed: ' + err.message;
-    window.cameraCombineFirstPhoto = null;
+        window.cameraCombineFirstPhoto = null;
   }
 }
 
@@ -2765,7 +2672,6 @@ function openMultiPresetSelector(imageId) {
       <button id="multi-preset-cancel" class="batch-control-button" style="height: 8vw; min-height: 32px;">Cancel</button>
     `;
     
-    const presetFilter = document.getElementById('preset-filter');
     const filterRow = presetFilter.closest('.filter-row') || presetFilter.parentNode;
     const presetList = document.getElementById('preset-list');
     filterRow.parentNode.insertBefore(multiControls, filterRow);
@@ -2811,8 +2717,7 @@ function updateMultiPresetList() {
 function openCameraMultiPresetSelector() {
   // Disabled when No Magic Mode is on
   if (noMagicMode) {
-    if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE — Multi Preset unavailable';
-    setTimeout(() => updatePresetDisplay(), 2000);
+        setTimeout(() => notifyPresetChange(), 2000);
     return;
   }
   // Re-use the gallery preset selector modal
@@ -2835,7 +2740,6 @@ function openCameraMultiPresetSelector() {
       <button id="multi-preset-apply" class="batch-control-button" style="background: #4CAF50; color: white; height: 8vw; min-height: 32px;">Apply Selected</button>
       <button id="multi-preset-cancel" class="batch-control-button" style="height: 8vw; min-height: 32px;">Cancel</button>
     `;
-    const presetFilter = document.getElementById('preset-filter');
     const filterRow = presetFilter.closest('.filter-row') || presetFilter.parentNode;
     const presetList = document.getElementById('preset-list');
     filterRow.parentNode.insertBefore(multiControls, filterRow);
@@ -2891,7 +2795,7 @@ function applyCameraMultiPresets() {
   if (btn) btn.classList.add('camera-multi-active');
 
     saveCameraMultiPresets();
-    updatePresetDisplay();
+    notifyPresetChange();
   }
 }
 
@@ -3107,50 +3011,6 @@ function updateMenuSelection() {
     // Show category hint with individually clickable categories
     const presetIndex = parseInt(currentItem.dataset.index);
     const preset = CAMERA_PRESETS[presetIndex];
-    const categoryHint = document.getElementById('menu-category-hint');
-    if (categoryHint && preset && preset.category && !isStyleFilterFocused) {
-      // Clear previous content
-      categoryHint.innerHTML = '';
-      categoryHint.style.display = 'block';
-      
-      // Create a clickable span for each category
-      preset.category.forEach((cat, index) => {
-        const categorySpan = document.createElement('span');
-        categorySpan.textContent = cat;
-        categorySpan.style.cursor = 'pointer';
-        categorySpan.style.padding = '0 2px';
-        
-        // Highlight if this category is currently being filtered
-        if (mainMenuFilterByCategory === cat) {
-          categorySpan.style.textDecoration = 'underline';
-          categorySpan.style.fontWeight = 'bold';
-        }
-        
-        // Make each category clickable
-        categorySpan.onclick = (e) => {
-          e.stopPropagation();
-          // If already filtering by this category, clear the filter
-          if (mainMenuFilterByCategory === cat) {
-            mainMenuFilterByCategory = '';
-          } else {
-            // Filter by this category
-            mainMenuFilterByCategory = cat;
-          }
-          currentMenuIndex = 0;
-                  };
-        
-        categoryHint.appendChild(categorySpan);
-        
-        // Add comma separator if not the last category
-        if (index < preset.category.length - 1) {
-          const comma = document.createElement('span');
-          comma.textContent = ', ';
-          categoryHint.appendChild(comma);
-        }
-      });
-    } else if (categoryHint) {
-      categoryHint.style.display = 'none';
-    }
   }
 }
 
@@ -3237,7 +3097,7 @@ function selectCurrentMenuItem() {
         const originalIndex = CAMERA_PRESETS.findIndex(p => p === selectedPreset);
         if (originalIndex !== -1) {
           currentPresetIndex = originalIndex;
-          updatePresetDisplay();
+          notifyPresetChange();
           hideUnifiedMenu();
         }
       }
@@ -3363,12 +3223,10 @@ async function recheckForUpdates() {
     const statusElement = document.getElementById('updates-status');
     if (statusElement) {
       if (stillHasUpdates) {
-        statusElement.textContent = '🔴 Updates available';
-        statusElement.style.color = '#FF5722';
+                statusElement.style.color = '#FF5722';
         statusElement.style.fontWeight = 'bold';
       } else {
-        statusElement.textContent = 'Check for Updates';
-        statusElement.style.color = '';
+                statusElement.style.color = '';
         statusElement.style.fontWeight = '';
       }
     }
@@ -3680,20 +3538,6 @@ function getSortedPresets() {
     return [...visibleFavorites, ...visibleRegular];
 }
 
-// Get the current preset's position in the sorted array
-function getCurrentSortedIndex() {
-  const sortedPresets = getSortedPresets();
-  const currentPreset = CAMERA_PRESETS[currentPresetIndex];
-  return sortedPresets.findIndex(p => p === currentPreset);
-}
-
-// Get original index from sorted index
-function getOriginalIndexFromSorted(sortedIndex) {
-  const sortedPresets = getSortedPresets();
-  const preset = sortedPresets[sortedIndex];
-  return CAMERA_PRESETS.findIndex(p => p === preset);
-}
-
 // Save styles to localStorage
 function saveStyles() {
   // LEGACY FUNCTION - kept for backward compatibility during migration period
@@ -3758,7 +3602,7 @@ function createStyleMenuItem(preset) {
     
     item.onclick = () => {
         currentPresetIndex = originalIndex;
-        updatePresetDisplay();
+        notifyPresetChange();
         hideUnifiedMenu();
     };
     
@@ -3836,8 +3680,6 @@ function showVisiblePresetsSubmenu() {
   visiblePresetsScrollEnabled = true;
   isSettingsSubmenuOpen = false;
   currentVisiblePresetsIndex = 0;
-  visiblePresetsFilterText = '';
-  document.getElementById('visible-presets-filter').value = '';
   populateVisiblePresetsList();
   updateVisiblePresetsDisplay();
 }
@@ -3847,13 +3689,7 @@ function hideVisiblePresetsSubmenu() {
   isVisiblePresetsSubmenuOpen = false;
   visiblePresetsScrollEnabled = false;
   currentVisiblePresetsIndex = 0;
-  visiblePresetsFilterText = '';
-  visiblePresetsFilterByCategory = ''; // Clear category filter
   // Hide category hint
-  const categoryHint = document.getElementById('visible-presets-category-hint');
-  if (categoryHint) {
-    categoryHint.style.display = 'none';
-  }
   showSettingsSubmenu();
 }
 
@@ -3984,7 +3820,7 @@ function hidePresetBuilderSubmenu() {
       const presetHeader = document.getElementById('viewer-preset-header');
       if (presetHeader) presetHeader.textContent = presetToShow.name;
     }
-    updatePresetDisplay();
+    notifyPresetChange();
     return;
   }
 
@@ -4836,7 +4672,7 @@ async function deleteCustomPreset() {
   }
 
   // Always update the camera footer after deletion
-  updatePresetDisplay();
+  notifyPresetChange();
 
   // Clear viewer loaded preset and reset gallery header since the preset is gone
   window.viewerLoadedPreset = null;
@@ -4890,17 +4726,8 @@ const allPresets = CAMERA_PRESETS.filter(p => {
 });
   const filtered = allPresets.filter(preset => {
     // First apply text search filter
-    if (visiblePresetsFilterText) {
-      const searchText = visiblePresetsFilterText.toLowerCase();
-      const categoryMatch = preset.category && preset.category.some(cat => cat.toLowerCase().includes(searchText));
-      const textMatch = preset.name.toLowerCase().includes(searchText) || categoryMatch;
-      if (!textMatch) return false;
-    }
     
     // Then apply category filter if active (filter by single category)
-    if (visiblePresetsFilterByCategory) {
-      return preset.category && preset.category.includes(visiblePresetsFilterByCategory);
-    }
     
     return true;
   });
@@ -4975,7 +4802,7 @@ function toggleVisiblePreset(presetName, isVisible) {
       // Find index of first visible preset in CAMERA_PRESETS
       currentPresetIndex = CAMERA_PRESETS.findIndex(p => p.name === visiblePresetObjects[0].name);
       // Update the camera footer immediately
-      updatePresetDisplay();
+      notifyPresetChange();
     }
   }
   
@@ -5067,51 +4894,6 @@ function updateVisiblePresetsSelection() {
     // Show category hint with individually clickable categories
     const presetName = currentItem.dataset.presetName;
     const preset = CAMERA_PRESETS.find(p => p.name === presetName);
-    const categoryHint = document.getElementById('visible-presets-category-hint');
-    if (categoryHint && preset && preset.category && !isVisiblePresetsFilterFocused) {
-      // Clear previous content
-      categoryHint.innerHTML = '';
-      categoryHint.style.display = 'block';
-      
-      // Create a clickable span for each category
-      preset.category.forEach((cat, index) => {
-        const categorySpan = document.createElement('span');
-        categorySpan.textContent = cat;
-        categorySpan.style.cursor = 'pointer';
-        categorySpan.style.padding = '0 2px';
-        
-        // Highlight if this category is currently being filtered
-        if (visiblePresetsFilterByCategory === cat) {
-          categorySpan.style.textDecoration = 'underline';
-          categorySpan.style.fontWeight = 'bold';
-        }
-        
-        // Make each category clickable
-        categorySpan.onclick = (e) => {
-          e.stopPropagation();
-          // If already filtering by this category, clear the filter
-          if (visiblePresetsFilterByCategory === cat) {
-            visiblePresetsFilterByCategory = '';
-          } else {
-            // Filter by this category
-            visiblePresetsFilterByCategory = cat;
-          }
-          currentVisiblePresetsIndex = 0;
-          populateVisiblePresetsList();
-        };
-        
-        categoryHint.appendChild(categorySpan);
-        
-        // Add comma separator if not the last category
-        if (index < preset.category.length - 1) {
-          const comma = document.createElement('span');
-          comma.textContent = ', ';
-          categoryHint.appendChild(comma);
-        }
-      });
-    } else if (categoryHint) {
-      categoryHint.style.display = 'none';
-    }
   }
 }
 
@@ -5134,11 +4916,6 @@ function toggleNoMagicMode() {
   noMagicMode = !noMagicMode;
   
   const statusElement = document.getElementById('no-magic-status');
-  if (statusElement) {
-    statusElement.textContent = noMagicMode ? 'Enabled' : 'Disabled';
-    statusElement.style.color = noMagicMode ? '#4CAF50' : '';
-    statusElement.style.fontWeight = noMagicMode ? '600' : '';
-  }
   
   try {
     localStorage.setItem(NO_MAGIC_MODE_KEY, JSON.stringify(noMagicMode));
@@ -5147,7 +4924,7 @@ function toggleNoMagicMode() {
   }
   
   // Update the camera footer immediately
-  updateNoMagicFooter();
+  notifyPresetChange();
   
   if (noMagicMode) {
     showStatus('No Magic Mode ON - Camera only', 2000);
@@ -5163,14 +4940,9 @@ function loadNoMagicMode() {
       noMagicMode = JSON.parse(saved);
       
       const statusElement = document.getElementById('no-magic-status');
-      if (statusElement) {
-        statusElement.textContent = noMagicMode ? 'Enabled' : 'Disabled';
-        statusElement.style.color = noMagicMode ? '#4CAF50' : '';
-        statusElement.style.fontWeight = noMagicMode ? '600' : '';
-      }
       
       // Update the camera footer on startup if NO MAGIC is active
-      updateNoMagicFooter();
+      notifyPresetChange();
     }
   } catch (err) {
     console.error('Failed to load No Magic mode:', err);
@@ -5309,13 +5081,11 @@ function updateLayerPresetList() {
 
 function openCameraLayerPresetSelector() {
   if (noMagicMode) {
-    if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE — Layer Preset unavailable';
-    setTimeout(() => updatePresetDisplay(), 2000);
+        setTimeout(() => notifyPresetChange(), 2000);
     return;
   }
   if (isRandomMode) {
-    if (statusElement) statusElement.textContent = '🎲 Random Mode is on — Layer Preset unavailable';
-    setTimeout(() => updatePresetDisplay(), 2000);
+        setTimeout(() => notifyPresetChange(), 2000);
     return;
   }
 
@@ -5337,7 +5107,6 @@ function openCameraLayerPresetSelector() {
       <button id="layer-preset-apply"  class="batch-control-button" style="background:#9c27b0;color:#fff;">Apply Selected</button>
       <button id="layer-preset-cancel" class="batch-control-button">Cancel</button>
     `;
-    const presetFilter = document.getElementById('preset-filter');
     const filterRow    = presetFilter.closest('.filter-row') || presetFilter.parentNode;
     filterRow.parentNode.insertBefore(layerControls, filterRow);
   }
@@ -5392,11 +5161,7 @@ async function applyCameraLayerPresets() {
 
   // Save to localStorage so it survives a page refresh
   saveCameraLayerPresets();
-  updatePresetDisplay();
-  if (statusElement) {
-    const names = cameraLayerPresets.map((p, i) => i === 0 ? `[PRIMARY] ${p.name}` : `[L${i}] ${p.name}`).join(' + ');
-    statusElement.textContent = `📑 Layer: ${names}`;
-  }
+  notifyPresetChange();
 }
 
 // Persist layer selections across refreshes
@@ -5415,7 +5180,7 @@ function clearCameraLayerPresets() {
   try { localStorage.removeItem(CAMERA_LAYER_PRESET_KEY); } catch (err) {}
   const btn = document.getElementById('camera-layer-toggle');
   if (btn) btn.classList.remove('layer-active');
-  updatePresetDisplay();
+  notifyPresetChange();
 }
 
 // Clears gallery layer state and resets the header indicator.
@@ -5449,7 +5214,6 @@ function openGalleryLayerPresetSelector(imageId) {
       <button id="layer-preset-apply"  class="batch-control-button" style="background:#9c27b0;color:#fff;">Apply Selected</button>
       <button id="layer-preset-cancel" class="batch-control-button">Cancel</button>
     `;
-    const presetFilter = document.getElementById('preset-filter');
     const filterRow    = presetFilter.closest('.filter-row') || presetFilter.parentNode;
     filterRow.parentNode.insertBefore(layerControls, filterRow);
   }
@@ -5548,19 +5312,7 @@ function clearCameraMultiPresets() {
   } catch (err) {}
   const btn = document.getElementById('camera-multi-preset-toggle');
   if (btn) btn.classList.remove('camera-multi-active');
-  updatePresetDisplay();
-}
-
-function updateNoMagicFooter() {
-  if (!window.cameraStarted) return;
-  
-  if (noMagicMode) {
-    if (statusElement) {
-      statusElement.textContent = '⚡ NO MAGIC MODE';
-    }
-  } else {
-    updatePresetDisplay();
-  }
+  notifyPresetChange();
 }
 
 // Load import resolution setting
@@ -6063,13 +5815,10 @@ function toggleRandomMode() {
   const randomToggle = document.getElementById('random-toggle');
   if (isRandomMode) {
     randomToggle.classList.add('random-active');
-    statusElement.textContent = noMagicMode
-      ? `⚡ NO MAGIC MODE • 🎲 Random Mode`
-      : `Random mode ON • ${CAMERA_PRESETS[currentPresetIndex].name}`;
     showStyleReveal('🎲 Random Mode');
   } else {
     randomToggle.classList.remove('random-active');
-    updatePresetDisplay();
+    notifyPresetChange();
     // Show current preset when random mode is turned off
     if (CAMERA_PRESETS && CAMERA_PRESETS[currentPresetIndex]) {
       showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
@@ -6147,8 +5896,7 @@ function setupConnectionMonitoring() {
     
     if (photoQueue.length > 0 && !isSyncing) {
       setTimeout(() => {
-        statusElement.textContent = `Connection restored! Syncing ${photoQueue.length} photos...`;
-        syncQueuedPhotos();
+                syncQueuedPhotos();
       }, 1000);
     }
   });
@@ -6159,8 +5907,7 @@ function setupConnectionMonitoring() {
     console.log('Connection lost');
     
     if (isSyncing) {
-      statusElement.textContent = 'Connection lost during sync';
-    }
+          }
   });
   
   updateConnectionStatus();
@@ -6219,8 +5966,7 @@ async function changeResolution(newIndex) {
   saveResolution(newIndex);
   
   try {
-    statusElement.textContent = 'Changing resolution...';
-    
+        
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
@@ -6249,7 +5995,7 @@ async function changeResolution(newIndex) {
       };
     });
     
-    updatePresetDisplay();
+    notifyPresetChange();
     
     if (typeof PluginMessageHandler !== 'undefined') {
       PluginMessageHandler.postMessage(JSON.stringify({ 
@@ -6261,8 +6007,7 @@ async function changeResolution(newIndex) {
     
   } catch (err) {
     console.error('Resolution change error:', err);
-    statusElement.textContent = 'Resolution change failed';
-  }
+      }
 }
 
 // Get camera label for display
@@ -6479,8 +6224,7 @@ async function switchCamera() {
   isLoadingCamera = true;
   
   try {
-    statusElement.textContent = 'Switching camera...';
-    
+        
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
@@ -6526,7 +6270,7 @@ async function switchCamera() {
       }
     });
     
-    updatePresetDisplay();
+    notifyPresetChange();
     
     if (typeof PluginMessageHandler !== 'undefined') {
       PluginMessageHandler.postMessage(JSON.stringify({ 
@@ -6539,8 +6283,7 @@ async function switchCamera() {
     
   } catch (err) {
     console.error('Camera switch error:', err);
-    statusElement.textContent = 'Camera switch failed';
-    
+        
     currentCameraIndex = (currentCameraIndex - 1 + availableCameras.length) % availableCameras.length;
   } finally {
     isLoadingCamera = false;
@@ -6553,7 +6296,6 @@ async function initCamera() {
     video = document.getElementById('video');
     canvas = document.getElementById('canvas');
     capturedImage = document.getElementById('captured-image');
-    statusElement = document.getElementById('status');
     resetButton = document.getElementById('reset-button');
     
     const startScreen = document.getElementById('start-screen');
@@ -6568,8 +6310,7 @@ async function initCamera() {
       }
     }
     
-    statusElement.style.display = 'block';
-    
+        
     // Make camera container visible early so user sees something
     const cameraContainer = document.getElementById('camera-container');
     if (cameraContainer) {
@@ -6641,7 +6382,7 @@ async function initCamera() {
       pickerOverlay.style.display = 'flex';
     }
 
-    updatePresetDisplay();
+    notifyPresetChange();
     
     // Build the styles menu now that presets are loaded
         
@@ -6692,8 +6433,7 @@ async function initCamera() {
     if (CAMERA_PRESETS.length === 0) {
       errorMsg += ' (also: no presets imported)';
     }
-    statusElement.textContent = errorMsg;
-    console.log('Camera error details:', err.name, err.message);
+        console.log('Camera error details:', err.name, err.message);
     document.getElementById('camera-container').style.display = 'flex';
     
     if (typeof PluginMessageHandler !== 'undefined') {
@@ -6787,25 +6527,17 @@ async function reinitializeCamera() {
 
   } catch (err) {
     console.error('Failed to re-initialize camera:', err);
-    if (statusElement) statusElement.textContent = 'Camera restart failed';
-  }
-
-  // Restore status element display
-  if (statusElement) {
-    statusElement.style.display = 'block';
   }
 
   // Re-show the style reveal footer
   if (noMagicMode) {
-    if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
-    showStyleReveal('⚡ NO MAGIC MODE');
+        showStyleReveal('⚡ NO MAGIC MODE');
   } else if (isRandomMode || isMultiPresetMode) {
     let modeName = '';
     if (isRandomMode) modeName = '🎲 Random Mode';
-    if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
-    showStyleReveal(modeName);
+        showStyleReveal(modeName);
   } else {
-    updatePresetDisplay();
+    notifyPresetChange();
   }
 }
 
@@ -6871,8 +6603,7 @@ async function resumeCamera() {
             
     } catch (err) {
       console.error('Failed to resume camera:', err);
-      statusElement.textContent = 'Camera resume failed';
-    }
+          }
   }
 }
 
@@ -6991,11 +6722,6 @@ addToGallery(dataUrl);
           const newTotal = getCredits();
           setTimeout(() => {
             showStyleReveal(`🪙 Credit Earned!\n(${newTotal} total)`);
-            if (statusElement) {
-              const prev = statusElement.textContent;
-              statusElement.textContent = `🪙 Credit earned! You have ${newTotal} credit${newTotal !== 1 ? 's' : ''}`;
-              setTimeout(() => { statusElement.textContent = prev || ''; }, 4000);
-            }
           }, 1800);
         }
       }
@@ -7023,13 +6749,11 @@ addToGallery(dataUrl);
     updateQueueDisplay();
 
     if (isOnline && !noMagicMode) {
-      statusElement.textContent = `Multi: sending ${presetsToApply.length} presets...`;
-      if (!isSyncing) {
+            if (!isSyncing) {
         syncQueuedPhotos();
       }
     } else {
-      statusElement.textContent = `${presetsToApply.length} presets queued`;
-    }
+          }
 
     // If timer is NOT active, clear multi-preset state after firing
     clearCameraMultiPresets();
@@ -7059,11 +6783,9 @@ addToGallery(dataUrl);
     updateQueueDisplay();
 
     if (isOnline && !noMagicMode) {
-      statusElement.textContent = `📑 Layer prompt sent (${cameraLayerPresets.length} presets merged)`;
-      if (!isSyncing) syncQueuedPhotos();
+            if (!isSyncing) syncQueuedPhotos();
     } else {
-      statusElement.textContent = `📑 Layer prompt queued (${cameraLayerPresets.length} presets merged)`;
-    }
+          }
 
     // Layer mode persists — user must tap the lit button to clear it
     return;
@@ -7094,13 +6816,11 @@ addToGallery(dataUrl);
     const message = noMagicMode 
       ? 'Photo saved!'
       : 'Photo saved! Uploading...';
-    statusElement.textContent = message;
-    if (!isSyncing) {
+        if (!isSyncing) {
       syncQueuedPhotos();
     }
   } else {
-    statusElement.textContent = `Photo queued for sync (${photoQueue.length} in queue)`;
-  }
+      }
   
   if (typeof PluginMessageHandler !== 'undefined') {
     PluginMessageHandler.postMessage(JSON.stringify({ 
@@ -7118,8 +6838,7 @@ async function syncQueuedPhotos() {
   }
   
   if (!isOnline) {
-    statusElement.textContent = 'Cannot sync - offline';
-    return;
+        return;
   }
   
   isSyncing = true;
@@ -7135,8 +6854,7 @@ async function syncQueuedPhotos() {
     const item = photoQueue[0];
     
     try {
-      statusElement.textContent = `Syncing ${successCount + 1}/${originalCount}...`;
-      
+            
       if (typeof PluginMessageHandler !== 'undefined' && !noMagicMode) {
         if (item.isCombined) window.isCombinedMode = true;
         const syncedPrompt = getFinalPrompt(item.preset, item.manualSelection || null);
@@ -7167,8 +6885,7 @@ async function syncQueuedPhotos() {
       
     } catch (error) {
       console.error('Sync error:', error);
-      statusElement.textContent = 'Sync error - will retry later';
-      break;
+            break;
     }
   }
   
@@ -7180,15 +6897,12 @@ async function syncQueuedPhotos() {
     const message = noMagicMode 
       ? `All ${successCount} photos saved!`
       : `All ${successCount} photos synced successfully!`;
-    statusElement.textContent = message;
-    setTimeout(() => {
-      updatePresetDisplay();
+        setTimeout(() => {
+      notifyPresetChange();
     }, 2000);
   } else if (!isOnline) {
-    statusElement.textContent = `Connection lost. ${photoQueue.length} photos queued.`;
-  } else {
-    statusElement.textContent = `Synced ${successCount}. ${photoQueue.length} remaining.`;
-  }
+      } else {
+      }
   
   if (typeof PluginMessageHandler !== 'undefined') {
     PluginMessageHandler.postMessage(JSON.stringify({ 
@@ -7510,44 +7224,6 @@ window.addEventListener('scrollUp', () => {
     return;
   }
 
-  // Camera preset cycling
-  if (!stream || capturedImage.style.display === 'block') return;
-  
-  const now = Date.now();
-  if (now - lastScrollTime < SCROLL_DEBOUNCE_MS) {
-    return;
-  }
-  lastScrollTime = now;
-  
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
-  }
-  
-  scrollTimeout = setTimeout(() => {
-    let currentSortedIndex = getCurrentSortedIndex();
-    const sortedPresets = getSortedPresets();
-    
-    currentSortedIndex = (currentSortedIndex - 1 + sortedPresets.length) % sortedPresets.length;
-    
-    currentPresetIndex = getOriginalIndexFromSorted(currentSortedIndex);
-    
-    const currentPreset = CAMERA_PRESETS[currentPresetIndex];
-    if (currentPreset) {
-      showStyleReveal(noMagicMode ? '⚡ NO MAGIC MODE' : currentPreset.name);
-    }
-    
-    updatePresetDisplay();
-    
-    if (typeof PluginMessageHandler !== 'undefined') {
-      PluginMessageHandler.postMessage(JSON.stringify({ 
-        action: 'preset_changed',
-        preset: CAMERA_PRESETS[currentPresetIndex].name,
-        timestamp: Date.now() 
-      }));
-    }
-    
-    scrollTimeout = null;
-  }, 50);
 });
 
 window.addEventListener('scrollDown', () => {
@@ -7650,98 +7326,19 @@ window.addEventListener('scrollDown', () => {
     return;
   }
   
-  // Camera preset cycling
-  if (!stream || capturedImage.style.display === 'block') return;
-  
-  const now = Date.now();
-  if (now - lastScrollTime < SCROLL_DEBOUNCE_MS) {
-    return;
-  }
-  lastScrollTime = now;
-  
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
-  }
-  
-  scrollTimeout = setTimeout(() => {
-    let currentSortedIndex = getCurrentSortedIndex();
-    const sortedPresets = getSortedPresets();
-    
-    currentSortedIndex = (currentSortedIndex + 1) % sortedPresets.length;
-    
-    currentPresetIndex = getOriginalIndexFromSorted(currentSortedIndex);
-    
-    const currentPreset = CAMERA_PRESETS[currentPresetIndex];
-    if (currentPreset) {
-      showStyleReveal(noMagicMode ? '⚡ NO MAGIC MODE' : currentPreset.name);
-    }
-    
-    updatePresetDisplay();
-    
-    if (typeof PluginMessageHandler !== 'undefined') {
-      PluginMessageHandler.postMessage(JSON.stringify({ 
-        action: 'preset_changed',
-        preset: CAMERA_PRESETS[currentPresetIndex].name,
-        timestamp: Date.now() 
-      }));
-    }
-    
-    scrollTimeout = null;
-  }, 50);
 });
 
-// Function to update preset display
-function updatePresetDisplay() {
-    currentPresetIndex = Math.max(0, Math.min(currentPresetIndex, CAMERA_PRESETS.length - 1));
-    const currentPreset = CAMERA_PRESETS[currentPresetIndex];
 
-    // Clean display name: strip leading #, normalize case
-    function getCleanPresetName(preset) {
-        let name = preset.name || '';
-        name = name.replace(/^#/, '');
-        // Convert ALL_CAPS (likely hashtag-style) to title case
-        if (/^[A-Z_]+$/.test(name.replace(/\s/g, ''))) {
-            name = name.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        }
-        return name.trim();
-    }
-    const cleanName = getCleanPresetName(currentPreset);
+function notifyPresetChange() {
+  const preset = CAMERA_PRESETS[currentPresetIndex];
+  const cleanName = preset ? (preset.displayName || preset.name || 'Unknown').replace(/^[•]\s*/, '').replace(/\s*\b(r1|rabbit|R1|Rabbit)\b\s*/g, ' ').trim().replace(/\s+/g, ' ') : 'Unknown';
 
-    if (videoTrack) {
-        try {
-            const constraints = {};
-            videoTrack.applyConstraints(constraints);
-        } catch (e) {
-            console.error('Error applying preset constraints:', e);
-        }
-    }
-
-    if (noMagicMode) {
-        statusElement.textContent = '⚡ NO MAGIC MODE';
-    } else if (isCameraMultiPresetActive && cameraSelectedPresets.length > 0) {
-        statusElement.textContent = `🎞️ MULTI PRESETS (${cameraSelectedPresets.length})`;
-    } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
-        statusElement.textContent = `📑 LAYER (${cameraLayerPresets.length} presets)`;
-    } else {
-        statusElement.textContent = `Style: ${cleanName}`;
-    }
-    
-    // Show style reveal on screen (middle text)
-    if (isCameraMultiPresetActive && cameraSelectedPresets.length > 0) {
-      showStyleReveal('🎞️ MULTI PRESETS');
-    } else if (isCameraLayerActive && cameraLayerPresets.length > 0) {
-      showStyleReveal('📑 LAYERS');
-    } else {
-      showStyleReveal(cleanName);
-    }
-
+  showStyleReveal(noMagicMode ? '⚡ NO MAGIC MODE' : cleanName);
+  try {
     localStorage.setItem(LAST_USED_PRESET_KEY, currentPresetIndex.toString());
-
-    if (isMenuOpen) {
-        updateMenuSelection();
-    }
+  } catch (err) {}
+  if (isMenuOpen) updateMenuSelection();
 }
-
 // Listen for plugin messages (responses from AI)
 // NOTE: The full handler including PTT speech-to-text is defined
 // at the bottom of this file. This placeholder is kept for reference only.
@@ -7788,7 +7385,7 @@ function resetToCamera() {
     applyZoom(currentZoom);
   }, 50);
 
-  updatePresetDisplay();
+  notifyPresetChange();
 
   // Restart QR detection when returning to camera view
   startQRDetection();
@@ -8006,15 +7603,8 @@ async function hideUnifiedMenu() {
   isMenuOpen = false;
   menuScrollEnabled = false;
   currentMenuIndex = 0;
-  styleFilterText = '';
-  mainMenuFilterByCategory = ''; // Clear category filter
-  document.getElementById('style-filter').value = '';
   
   // Hide category hint
-  const categoryHint = document.getElementById('menu-category-hint');
-  if (categoryHint) {
-    categoryHint.style.display = 'none';
-  }
   
   document.getElementById('unified-menu').style.display = 'none';
   await resumeCamera();
@@ -8022,15 +7612,13 @@ async function hideUnifiedMenu() {
   // Re-show the style reveal footer
   if (noMagicMode) {
     // NO MAGIC MODE overrides everything in footer and popup
-    if (statusElement) statusElement.textContent = '⚡ NO MAGIC MODE';
-    showStyleReveal('⚡ NO MAGIC MODE');
+        showStyleReveal('⚡ NO MAGIC MODE');
   } else if (isRandomMode) {
     const modeName = '🎲 Random Mode';
-    if (statusElement) statusElement.textContent = `${modeName} • ${CAMERA_PRESETS[currentPresetIndex] ? CAMERA_PRESETS[currentPresetIndex].name : ''}`;
-    showStyleReveal(modeName);
+        showStyleReveal(modeName);
   } else {
     // Update both footer AND popup immediately
-    updatePresetDisplay();
+    notifyPresetChange();
   }
 }
 
@@ -8227,7 +7815,7 @@ async function hideMasterPromptSubmenu() {
     // Update all indicators and display
     updateMasterPromptIndicator();
     updateMasterPromptDisplay();
-    updatePresetDisplay();
+    notifyPresetChange();
     // Show left carousel again and resume camera
     const leftCamCarousel = document.getElementById('left-cam-carousel');
     if (leftCamCarousel) leftCamCarousel.style.display = 'flex';
@@ -8704,7 +8292,7 @@ async function deleteStyle() {
       }
       
       // Update the preset display to reflect the switch
-        updatePresetDisplay();
+        notifyPresetChange();
       
         // Update visible presets display to reflect deletion
         updateVisiblePresetsDisplay();
@@ -9772,29 +9360,6 @@ window.addEventListener('load', () => {
     });
   }
 
-  const visiblePresetsFilter = document.getElementById('visible-presets-filter');
-  if (visiblePresetsFilter) {
-    visiblePresetsFilter.addEventListener('input', (e) => {
-      visiblePresetsFilterText = e.target.value;
-      populateVisiblePresetsList();
-    });
-    
-    // Hide category footer when field is focused (keyboard appears)
-    visiblePresetsFilter.addEventListener('focus', () => {
-      isVisiblePresetsFilterFocused = true;
-      const categoryHint = document.getElementById('visible-presets-category-hint');
-      if (categoryHint) {
-        categoryHint.style.display = 'none';
-      }
-    });
-    
-    // Show category footer when keyboard dismissed
-    visiblePresetsFilter.addEventListener('blur', () => {
-      isVisiblePresetsFilterFocused = false;
-      // Category footer will be restored by updateVisiblePresetsSelection when needed
-    });
-  }
-  
   const visiblePresetsSelectAll = document.getElementById('visible-presets-select-all');
   if (visiblePresetsSelectAll) {
     visiblePresetsSelectAll.addEventListener('click', () => {
@@ -10611,73 +10176,6 @@ const result = await presetImporter.import();
     });
   }
 
- // Filter blur buttons — first click dismisses keyboard, second click clears text
-  function makeFilterBlurBtn(btnId, filterId, onClear) {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    let blurClickCount = 0;
-    let blurClickTimer = null;
-    btn.addEventListener('click', () => {
-      const f = document.getElementById(filterId);
-      if (!f) return;
-      blurClickCount++;
-      if (blurClickCount === 1) {
-        // First click: just dismiss keyboard
-        f.blur();
-        blurClickTimer = setTimeout(() => { blurClickCount = 0; }, 1000);
-      } else {
-        // Second click within 1 second: clear the field
-        clearTimeout(blurClickTimer);
-        blurClickCount = 0;
-        f.value = '';
-        f.dispatchEvent(new Event('input', { bubbles: true }));
-        if (onClear) onClear();
-      }
-    });
-  }
-
-  makeFilterBlurBtn('style-filter-blur-btn', 'style-filter', () => {
-    styleFilterText = '';
-      });
-
-  makeFilterBlurBtn('visible-presets-filter-blur-btn', 'visible-presets-filter', () => {
-    visiblePresetsFilterText = '';
-    populateVisiblePresetsList();
-  });
-
-  makeFilterBlurBtn('preset-filter-blur-btn', 'preset-filter', () => {
-    presetFilterText = '';
-    populatePresetList();
-  });
-
- const styleFilter = document.getElementById('style-filter');
-  let filterDebounceTimeout = null;
-  if (styleFilter) {
-    styleFilter.addEventListener('input', (e) => {
-      styleFilterText = e.target.value;
-      
-      // Debounce filter updates
-      if (filterDebounceTimeout) clearTimeout(filterDebounceTimeout);
-      filterDebounceTimeout = setTimeout(() => {
-              }, 150); // Wait 150ms after user stops typing
-    });
-    
-    // Hide category footer when field is focused (keyboard appears)
-    styleFilter.addEventListener('focus', () => {
-      isStyleFilterFocused = true;
-      const categoryHint = document.getElementById('menu-category-hint');
-      if (categoryHint) {
-        categoryHint.style.display = 'none';
-      }
-    });
-    
-    // Show category footer when keyboard dismissed
-    styleFilter.addEventListener('blur', () => {
-      isStyleFilterFocused = false;
-      // Category footer will be restored by updateMenuSelection when needed
-    });
-  }
-
   loadNoMagicMode();
   loadImportResolution();
 
@@ -11052,21 +10550,14 @@ const result = await presetImporter.import();
     closePresetSelectorBtn.addEventListener('click', hidePresetSelector);
   }
   
-  const presetFilter = document.getElementById('preset-filter');
   if (presetFilter) {
     presetFilter.addEventListener('input', (e) => {
-      presetFilterText = e.target.value;
       populatePresetList();
     });
     
     // Hide footer and controls when user starts typing (keyboard appears)
     presetFilter.addEventListener('focus', () => {
-      isPresetFilterFocused = true;
       // Hide category footer
-      const categoryHint = document.getElementById('preset-selector-category-hint');
-      if (categoryHint) {
-        categoryHint.style.display = 'none';
-      }
       
       // Hide multi-preset controls if they exist
       const multiControls = document.getElementById('multi-preset-controls');
@@ -11077,8 +10568,7 @@ const result = await presetImporter.import();
     
     // Show them back when user is done typing (keyboard dismissed)
     presetFilter.addEventListener('blur', () => {
-      isPresetFilterFocused = false;
-      // Only restore multi-preset controls if we're in multi-preset mode
+          // Only restore multi-preset controls if we're in multi-preset mode
       if (isMultiPresetMode) {
         const multiControls = document.getElementById('multi-preset-controls');
         if (multiControls) {
@@ -11230,17 +10720,12 @@ window.startGuidedTour = startGuidedTour;
 async function uploadViewerImage() {
   if (currentViewerImageIndex < 0) return;
   
-  const statusElement = document.getElementById('status');
   const uploadBtn = document.getElementById('upload-viewer-image');
   
   try {
     // Disable button and show status
     uploadBtn.disabled = true;
       uploadBtn.innerHTML = '⏳';
-    if (statusElement) {
-      statusElement.style.display = 'block';
-      statusElement.textContent = 'Getting server...';
-    }
     
     // Step 1: Get the best server from gofile.io
     const serverResponse = await fetch('https://api.gofile.io/servers');
@@ -11256,9 +10741,6 @@ async function uploadViewerImage() {
     // Use the first available server
     const server = serverData.data.servers[0].name;
     
-    if (statusElement) {
-      statusElement.textContent = 'Uploading image...';
-    }
     
     const imageData = galleryImages[currentViewerImageIndex];
     // Convert base64 to blob
@@ -11295,24 +10777,11 @@ async function uploadViewerImage() {
     
     const downloadUrl = result.data.downloadPage;
     
-    if (statusElement) {
-      statusElement.textContent = 'Upload successful!';
-      setTimeout(() => {
-        statusElement.style.display = 'none';
-      }, 2000);
-    }
-    
     // Show QR code
     showQrCode(downloadUrl.trim());
     
   } catch (error) {
     console.error('Upload error:', error);
-    if (statusElement) {
-      statusElement.textContent = 'Upload failed: ' + error.message;
-      setTimeout(() => {
-        statusElement.style.display = 'none';
-      }, 4000);
-    }
   } finally {
     // Re-enable button
     uploadBtn.disabled = false;
@@ -11431,8 +10900,7 @@ function stopQRScannerCamera() {
 function updateQRScannerStatus(message, type = '') {
   const statusElement = document.getElementById('qr-scanner-status');
   if (statusElement) {
-    statusElement.textContent = message;
-    statusElement.className = 'qr-scanner-status';
+        statusElement.className = 'qr-scanner-status';
     if (type) {
       statusElement.classList.add(type);
     }
@@ -11485,8 +10953,7 @@ function showGalleryStatusMessage(message, type = 'info', duration = 3000) {
   const statusElement = document.getElementById('gallery-status-message');
   if (!statusElement) return;
   
-  statusElement.textContent = message;
-  statusElement.className = 'gallery-status-message';
+    statusElement.className = 'gallery-status-message';
   
   if (type === 'error') {
     statusElement.classList.add('error');
@@ -11494,12 +10961,10 @@ function showGalleryStatusMessage(message, type = 'info', duration = 3000) {
     statusElement.classList.add('success');
   }
   
-  statusElement.style.display = 'block';
-  
+    
   // Auto-hide after duration
   setTimeout(() => {
-    statusElement.style.display = 'none';
-  }, duration);
+      }, duration);
 }
 
 function startQRDetection() {
@@ -12158,9 +11623,6 @@ console.log('AI Camera Styles app initialized!');
   // The list of every text input and textarea in the app that should
   // support PTT. Each one is found by its id from the HTML.
   const pttFieldIds = [
-    'style-filter',           // Filter styles search box in the menu
-    'visible-presets-filter', // Filter presets search box in settings
-    'preset-filter',          // Filter presets search box in preset selector
     'master-prompt-text',     // Master prompt textarea in settings
     'preset-builder-prompt',  // AI prompt textarea in preset builder
     'preset-builder-name',    // Preset name field in preset builder
@@ -12249,10 +11711,8 @@ console.log('AI Camera Styles app initialized!');
     if (!anyScreenOpen && !noMagicMode && !isRandomMode && !isCameraMultiPresetActive && !isCameraLayerActive) {
       window.isVoicePresetListening = true;
       if (window.isCameraLiveCombineMode) {
-        statusElement.textContent = '🎙️ Listening... speak your combine preset';
-      } else {
-        statusElement.textContent = '🎙️ Listening... speak your preset';
-      }
+              } else {
+              }
       CreationVoiceHandler.postMessage('start');
     }
   });
@@ -12282,12 +11742,9 @@ console.log('AI Camera Styles app initialized!');
 
     // --- Original AI image response handling ---
     if (data && data.status === 'processing') {
-      statusElement.textContent = 'AI is processing your image...';
-    } else if (data && data.status === 'complete') {
-      statusElement.textContent = 'AI transformation complete!';
-    } else if (data && data.error) {
-      statusElement.textContent = 'Error: ' + data.error;
-    }
+          } else if (data && data.status === 'complete') {
+          } else if (data && data.error) {
+          }
 
     // --- PTT speech-to-text handling ---
     if (data.type === 'sttEnded' && data.transcript) {
@@ -12332,8 +11789,7 @@ console.log('AI Camera Styles app initialized!');
           additionalInstructions: ''
         };
 
-        statusElement.textContent = '🎙️ Got it! Taking photo...';
-
+        
         // If camera combine mode is active, the voice preset drives the combine flow.
         // Take photo 1 immediately, save to gallery, then prompt for photo 2.
         if (window.isCameraLiveCombineMode) {
@@ -12347,8 +11803,7 @@ console.log('AI Camera Styles app initialized!');
             // Store the voice preset so finalizeCameraLiveCombine can use it
             const spokenPreset = window.voicePreset;
             window.voicePreset = null;
-            statusElement.textContent = '✅ First photo taken! Press side button for second photo';
-            showStyleReveal('📸 1st done!\nTake 2nd photo');
+                        showStyleReveal('📸 1st done!\nTake 2nd photo');
             // Override the sideClick for next press to capture photo 2 with this voice preset
             window.cameraCombineVoicePreset = spokenPreset;
           }
