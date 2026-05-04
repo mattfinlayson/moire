@@ -3530,6 +3530,11 @@ function getStylesLists() {
     return { favorites, regular };
 }
 
+function getFinalPrompt(preset, manualSelection) {
+  if (manualSelection) return manualSelection;
+  return (preset && preset.message) ? preset.message : '';
+}
+
 function getSortedPresets() {
     const { favorites, regular } = getStylesLists();
     // Filter to only visible presets
