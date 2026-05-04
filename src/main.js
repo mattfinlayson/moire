@@ -117,29 +117,15 @@ window.confirm = customConfirm;
 
 // Resolution settings
 const RESOLUTION_PRESETS = [
-  { name: 'VGA (640x480)', width: 640, height: 480 },
-  { name: 'SVGA (800x600)', width: 800, height: 600 },
-  { name: 'XGA (1024x768)', width: 1024, height: 768 },
-  { name: 'SXGA (1280x960)', width: 1280, height: 960 },
-  { name: 'SXGA+ (1400x1050)', width: 1400, height: 1050 },
-  { name: 'UXGA (1600x1200)', width: 1600, height: 1200 },
-  { name: '2K (2048x1080)', width: 2048, height: 1080 },
-  { name: 'HD (3264x2448)', width: 3264, height: 2448 }
+  { name: 'Magic Gallery (640x480)', width: 640, height: 480 }
 ];
-let currentResolutionIndex = 0; // Default to Low (640x480)
-const RESOLUTION_STORAGE_KEY = 'r1_camera_resolution';
+let currentResolutionIndex = 0;
 
 // Import resolution settings
 const IMPORT_RESOLUTION_OPTIONS = [
-  { name: 'VGA (640x480)', width: 640, height: 480 },
-  { name: 'SVGA (800x600)', width: 800, height: 600 },
-  { name: 'XGA (1024x768)', width: 1024, height: 768 },
-  { name: 'SXGA (1280x960)', width: 1280, height: 960 },
-  { name: 'UXGA (1600x1200)', width: 1600, height: 1200 },
-  { name: '2K (2048x1080)', width: 2048, height: 1080 }
+  { name: 'Magic Gallery (640x480)', width: 640, height: 480 }
 ];
-let currentImportResolutionIndex = 0; // Default to VGA (640x480)
-const IMPORT_RESOLUTION_STORAGE_KEY = 'r1_import_resolution';
+let currentImportResolutionIndex = 0;
 
 // White balance settings - COMMENTED OUT
 // const WHITE_BALANCE_MODES = [
@@ -168,13 +154,10 @@ let zoomThrottleTimeout = null;
 
 const LAST_USED_PRESET_KEY = 'r1_camera_last_preset';
 
-// Master Prompt settings
+// Removed settings are pinned off so stale localStorage cannot affect captures.
 let masterPromptText = '';
 let masterPromptEnabled = false;
-const MASTER_PROMPT_STORAGE_KEY = 'r1_camera_master_prompt';
-const MASTER_PROMPT_ENABLED_KEY = 'r1_camera_master_prompt_enabled';
-const ASPECT_RATIO_STORAGE_KEY = 'r1_camera_aspect_ratio';
-let selectedAspectRatio = 'none'; // 'none', '1:1', or '16:9'
+let selectedAspectRatio = 'none';
 
 // Random seed selection tracking
 const SELECTION_HISTORY_KEY = 'r1_camera_selection_history';
@@ -184,11 +167,7 @@ const MAX_HISTORY_PER_PRESET = 5; // Remember last 5 selections per preset
 // Randomizer variables
 let isRandomMode = false;
 
-// No Magic mode
 let noMagicMode = false;
-const NO_MAGIC_MODE_KEY = 'r1_camera_no_magic_mode';
-
-const TOUR_PROGRESS_KEY = 'r1_camera_tour_progress';
 const APP_VERSION = (() => {
   const d = new Date(document.lastModified);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -3157,20 +3136,7 @@ async function loadStyles() {
         hideLoadingOverlay();
     }
 
-    // Load favorites — runs for all users every startup
-    const favoritesJson = localStorage.getItem(FAVORITE_STYLES_KEY);
-    if (favoritesJson) {
-        try {
-            favoriteStyles = JSON.parse(favoritesJson);
-            if (!Array.isArray(favoriteStyles)) {
-                favoriteStyles = []; 
-            }
-        } catch (e) {
-            console.error("Error parsing favorite styles:", e);
-            favoriteStyles = []; 
-        }
-    }
-    
+    favoriteStyles = [];
     loadResolution();
     // loadWhiteBalanceSettings();
 
@@ -3179,46 +3145,14 @@ async function loadStyles() {
       const allFactoryPresets = await presetImporter.loadPresetsFromFile();
       CAMERA_PRESETS = [...allFactoryPresets];
       totalFactoryPresetCount = allFactoryPresets.length;
-      const tutorialCountEl = document.getElementById('tutorial-preset-count');
-      if (tutorialCountEl) tutorialCountEl.textContent = totalFactoryPresetCount;
     } catch (e) {
       console.log('Could not load presets:', e);
       CAMERA_PRESETS = [];
     }
 
     loadLastUsedStyle();
-    
-    // Load visible presets — runs for all users every startup
-    const visibleJson = localStorage.getItem(VISIBLE_PRESETS_KEY);
-    if (visibleJson) {
-        try {
-            visiblePresets = JSON.parse(visibleJson);
-            if (!Array.isArray(visiblePresets)) {
-                visiblePresets = [];
-            }
-        } catch (e) {
-            console.error("Error parsing visible presets:", e);
-            visiblePresets = [];
-        }
-    }
-    
-    // Clean up visible presets - remove any preset names that no longer exist in CAMERA_PRESETS
-    const validPresetNames = new Set(CAMERA_PRESETS.map(p => p.name));
-    const originalLength = visiblePresets.length;
-    visiblePresets = visiblePresets.filter(name => validPresetNames.has(name));
-    
-    // If we removed any invalid names, save the cleaned list
-    if (originalLength !== visiblePresets.length) {
-        saveVisiblePresets();
-    }
-    
-    // If no visible presets saved, show all by default
-    if (visiblePresets.length === 0 && CAMERA_PRESETS.length > 0) {
-        visiblePresets = CAMERA_PRESETS.map(p => p.name);
-        saveVisiblePresets();
-    }
-    
-    // Update the display to show correct count on startup
+
+    visiblePresets = CAMERA_PRESETS.map(p => p.name);
     updateVisiblePresetsDisplay();
 }
 
@@ -3320,25 +3254,17 @@ async function mergePresetsWithStorage() {
 
 // Save visible presets to localStorage
 function saveVisiblePresets() {
-    try {
-        localStorage.setItem(VISIBLE_PRESETS_KEY, JSON.stringify(visiblePresets));
-    } catch (err) {
-        console.error('Error saving visible presets:', err);
-    }
+    visiblePresets = CAMERA_PRESETS.map(p => p.name);
 }
 
 // Get only visible presets
 function getVisiblePresets() {
-    return CAMERA_PRESETS.filter(preset => visiblePresets.includes(preset.name));
+    return CAMERA_PRESETS;
 }
 
 // Save resolution setting
 function saveResolution(index) {
-  try {
-    localStorage.setItem(RESOLUTION_STORAGE_KEY, index.toString());
-  } catch (err) {
-    console.error('Error saving resolution:', err);
-  }
+  currentResolutionIndex = 0;
 }
 
 // ========== WHITE BALANCE FUNCTIONS - COMMENTED OUT ==========
@@ -3530,29 +3456,12 @@ function saveResolution(index) {
 
 // Load resolution setting
 function loadResolution() {
-  try {
-    const saved = localStorage.getItem(RESOLUTION_STORAGE_KEY);
-    if (saved !== null) {
-      const index = parseInt(saved, 10);
-      if (index >= 0 && index < RESOLUTION_PRESETS.length) {
-        currentResolutionIndex = index;
-      }
-    }
-  } catch (err) {
-    console.error('Error loading resolution:', err);
-  }
+  currentResolutionIndex = 0;
 }
 
 function getStylesLists() {
-    const presets = CAMERA_PRESETS.filter(p => visiblePresets.includes(p.name));
-    
-    const sortedAll = presets.slice().sort((a, b) => a.name.localeCompare(b.name));
-    
-    const favorites = sortedAll.filter(p => isFavoriteStyle(p.name));
-    
-    const regular = sortedAll.filter(p => !isFavoriteStyle(p.name));
-
-    return { favorites, regular };
+    const regular = CAMERA_PRESETS.slice().sort((a, b) => a.name.localeCompare(b.name));
+    return { favorites: [], regular };
 }
 
 function getFinalPrompt(preset, manualSelection) {
@@ -3561,11 +3470,7 @@ function getFinalPrompt(preset, manualSelection) {
 }
 
 function getSortedPresets() {
-    const { favorites, regular } = getStylesLists();
-    // Filter to only visible presets
-    const visibleFavorites = favorites.filter(p => visiblePresets.includes(p.name));
-    const visibleRegular = regular.filter(p => visiblePresets.includes(p.name));
-    return [...visibleFavorites, ...visibleRegular];
+    return CAMERA_PRESETS.slice().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Save styles to localStorage
@@ -3596,39 +3501,7 @@ function createStyleMenuItem(preset) {
     name.className = 'style-name';
     name.textContent = preset.name;
     
-    const favBtn = document.createElement('button');
-    favBtn.className = 'style-favorite';
-    favBtn.textContent = isFavoriteStyle(preset.name) ? '⭐' : '☆'; 
-    favBtn.onclick = (e) => {
-        e.stopPropagation();
-        saveFavoriteStyle(preset.name); 
-    };
-    
-    const editBtn = document.createElement('button');
-    editBtn.className = 'style-edit';
-    
-    // Check if this is a user-created preset (has internal: false explicitly set)
-    const isUserPreset = (preset.internal === false);
-    
-    if (isUserPreset) {
-        editBtn.textContent = 'Builder';
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            returnToMainMenuFromBuilder = true;
-            hideUnifiedMenu();
-            editPresetInBuilder(originalIndex);
-        };
-    } else {
-        editBtn.textContent = 'Edit';
-        editBtn.onclick = (e) => {
-            e.stopPropagation();
-            editStyle(originalIndex);
-        };
-    }
-         
-    item.appendChild(favBtn);
     item.appendChild(name);
-    item.appendChild(editBtn);
     
     item.onclick = () => {
         currentPresetIndex = originalIndex;
@@ -3641,25 +3514,8 @@ function createStyleMenuItem(preset) {
 
 // Save favorite style
 function saveFavoriteStyle(styleName) {
-    const index = favoriteStyles.indexOf(styleName);
-    
-    if (index > -1) {
-        favoriteStyles.splice(index, 1);
-    } else {
-        favoriteStyles.push(styleName);
-    }
-
-    localStorage.setItem(FAVORITE_STYLES_KEY, JSON.stringify(favoriteStyles));
-    
-    // Save current scroll position before repopulating
-    const scrollContainer = document.querySelector('.styles-menu-scroll-container');
-    const scrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
-    
-        
-    // Restore scroll position after repopulating
-    if (scrollContainer) {
-        scrollContainer.scrollTop = scrollPosition;
-    }
+    favoriteStyles = [];
+    try { localStorage.removeItem(FAVORITE_STYLES_KEY); } catch (err) {}
 }
 
 function loadLastUsedStyle() {
@@ -3679,122 +3535,47 @@ function loadLastUsedStyle() {
 
 // Check if style is favorited
 function isFavoriteStyle(styleName) {
-    return favoriteStyles.includes(styleName);
+    return false;
 }
 
 // Get random preset index from favorites (or all presets if no favorites)
 function getRandomPresetIndex() {
-  // Get visible presets using the same logic as scroll wheel
   const sortedPresets = getSortedPresets();
   
   if (sortedPresets.length === 0) return 0;
-  
-  // Filter to only favorites if they exist
-  const favoritedVisible = sortedPresets.filter(p => isFavoriteStyle(p.name));
-  
-  if (favoritedVisible.length > 0) {
-    const randomPreset = favoritedVisible[Math.floor(Math.random() * favoritedVisible.length)];
-    return CAMERA_PRESETS.findIndex(p => p === randomPreset);
-  }
-  
-  // Otherwise pick from all visible presets
+
   const randomPreset = sortedPresets[Math.floor(Math.random() * sortedPresets.length)];
   return CAMERA_PRESETS.findIndex(p => p === randomPreset);
 }
 
 function showVisiblePresetsSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  document.getElementById('visible-presets-submenu').style.display = 'flex';
-  isMenuOpen = false; // ADD THIS LINE
-  isVisiblePresetsSubmenuOpen = true;
-  visiblePresetsScrollEnabled = true;
+  visiblePresets = CAMERA_PRESETS.map(p => p.name);
+  isVisiblePresetsSubmenuOpen = false;
+  visiblePresetsScrollEnabled = false;
   isSettingsSubmenuOpen = false;
-  currentVisiblePresetsIndex = 0;
-  populateVisiblePresetsList();
-  updateVisiblePresetsDisplay();
 }
 
 function hideVisiblePresetsSubmenu() {
-  document.getElementById('visible-presets-submenu').style.display = 'none';
   isVisiblePresetsSubmenuOpen = false;
   visiblePresetsScrollEnabled = false;
   currentVisiblePresetsIndex = 0;
-  // Hide category hint
-  showSettingsSubmenu();
 }
 
 // Called when user taps the viewer prompt text area
 function handleViewerPromptTap() {
-  const hasLoadedPreset = !!window.viewerLoadedPreset;
-  
-  if (!hasLoadedPreset) {
-    // No preset loaded: open Preset Builder to create a new one
-    returnToGalleryFromViewerEdit = true;
-    // Close the image viewer and gallery modal so builder has full screen
-    document.getElementById('image-viewer').style.display = 'none';
-    document.getElementById('gallery-modal').style.display = 'none';
-    // Close main menu if open
-    document.getElementById('unified-menu').style.display = 'none';
-    isMenuOpen = false;
-    // Open settings submenu first (needed as parent context), then go to builder
-    document.getElementById('settings-submenu').style.display = 'flex';
-    isSettingsSubmenuOpen = true;
-    // Open preset builder
-    document.getElementById('settings-submenu').style.display = 'none';
-    document.getElementById('preset-builder-submenu').style.display = 'flex';
-    isSettingsSubmenuOpen = false;
-    isPresetBuilderSubmenuOpen = true;
-    clearPresetBuilderForm();
-  } else {
-    // A preset is loaded — use internal flag to determine editor (same logic as main menu)
-    const loadedPreset = window.viewerLoadedPreset;
-    // Find the current version of this preset in CAMERA_PRESETS
-    const presetIndex = CAMERA_PRESETS.findIndex(p => p.name === loadedPreset.name);
-    const currentPresetObj = presetIndex >= 0 ? CAMERA_PRESETS[presetIndex] : loadedPreset;
-    const isCustomPreset = (currentPresetObj.internal === false);
-
-    returnToGalleryFromViewerEdit = true;
-    document.getElementById('image-viewer').style.display = 'none';
-    document.getElementById('gallery-modal').style.display = 'none';
-    document.getElementById('unified-menu').style.display = 'none';
-    isMenuOpen = false;
-
-    if (isCustomPreset) {
-      // Custom preset (internal: false): open Preset Builder in edit mode
-      if (presetIndex >= 0) {
-        editPresetInBuilder(presetIndex);
-      } else {
-        // Preset not found by name — clear form for new entry
-        document.getElementById('preset-builder-submenu').style.display = 'flex';
-        isSettingsSubmenuOpen = false;
-        isPresetBuilderSubmenuOpen = true;
-        clearPresetBuilderForm();
-      }
-    } else {
-      // Factory/imported preset: open Style Editor in edit mode
-      if (presetIndex >= 0) {
-        editStyle(presetIndex);
-        showStyleEditor('Edit Style');
-      }
-    }
-  }
+  // User-facing prompt and preset editing has been removed. Magic uses the
+  // built-in prompt set internally and chooses from it automatically.
+  notifyPresetChange();
 }
 
 // Show Preset Builder submenu
 function showPresetBuilderSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  document.getElementById('preset-builder-submenu').style.display = 'flex';
-  
   isMenuOpen = false;
   isSettingsSubmenuOpen = false;
-  isPresetBuilderSubmenuOpen = true;
-  
-  // Clear the form
-  clearPresetBuilderForm();
+  isPresetBuilderSubmenuOpen = false;
 }
 
 function hidePresetBuilderSubmenu() {
-  document.getElementById('preset-builder-submenu').style.display = 'none';
   isPresetBuilderSubmenuOpen = false;
   const savedBuilderIndex = editingPresetBuilderIndex;
   editingPresetBuilderIndex = -1;
@@ -3806,7 +3587,6 @@ function hidePresetBuilderSubmenu() {
   // If we came from the gallery viewer, return there instead of settings
   if (returnToGalleryFromViewerEdit) {
     returnToGalleryFromViewerEdit = false;
-    document.getElementById('settings-submenu').style.display = 'none';
     isSettingsSubmenuOpen = false;
     // Remember which preset was loaded before we open the viewer (openImageViewer blanks the field)
     const presetToRestore = window.viewerLoadedPreset;
@@ -3861,7 +3641,7 @@ function hidePresetBuilderSubmenu() {
     return;
   }
   
-  showSettingsSubmenu();
+  isSettingsSubmenuOpen = false;
 }
 
 // ============================================================
@@ -4943,24 +4723,8 @@ function selectCurrentVisiblePresetsItem() {
 }
 
 function toggleNoMagicMode() {
-  noMagicMode = !noMagicMode;
-  
-  try {
-    localStorage.setItem(NO_MAGIC_MODE_KEY, JSON.stringify(noMagicMode));
-  } catch (err) {
-    console.error('Failed to save No Magic mode:', err);
-  }
-
-  updateNoMagicModeStatus();
-  
-  // Update the camera footer immediately
+  noMagicMode = false;
   notifyPresetChange();
-  
-  if (noMagicMode) {
-    showStatus('No Magic Mode ON - Camera only', 2000);
-  } else {
-    showStatus('No Magic Mode OFF - AI prompts enabled', 2000);
-  }
 }
 
 function updateNoMagicModeStatus() {
@@ -4971,19 +4735,11 @@ function updateNoMagicModeStatus() {
 }
 
 function loadNoMagicMode() {
+  noMagicMode = false;
   try {
-    const saved = localStorage.getItem(NO_MAGIC_MODE_KEY);
-    if (saved !== null) {
-      noMagicMode = JSON.parse(saved);
-    }
-
-    updateNoMagicModeStatus();
-
-    // Update the camera footer on startup if NO MAGIC is active
-    if (noMagicMode) notifyPresetChange();
-  } catch (err) {
-    console.error('Failed to load No Magic mode:', err);
-  }
+    localStorage.removeItem('r1_camera_no_magic_mode');
+  } catch (err) {}
+  updateNoMagicModeStatus();
 }
 
 // 
@@ -5354,16 +5110,13 @@ function clearCameraMultiPresets() {
 
 // Load import resolution setting
 function loadImportResolution() {
-  const saved = localStorage.getItem(IMPORT_RESOLUTION_STORAGE_KEY);
-  if (saved !== null) {
-    currentImportResolutionIndex = parseInt(saved, 10);
-  }
+  currentImportResolutionIndex = 0;
   updateImportResolutionDisplay();
 }
 
 // Save import resolution setting
 function saveImportResolution() {
-  localStorage.setItem(IMPORT_RESOLUTION_STORAGE_KEY, currentImportResolutionIndex.toString());
+  currentImportResolutionIndex = 0;
   updateImportResolutionDisplay();
 }
 
@@ -5377,26 +5130,16 @@ function updateImportResolutionDisplay() {
 }
 
 function showTutorialSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  document.getElementById('tutorial-submenu').style.display = 'flex';
-
-  isMenuOpen = false; // ADD THIS LINE  
-  isTutorialOpen = true;
-  tutorialScrollEnabled = true; // Enable scrolling immediately
-  isTutorialSubmenuOpen = true;
-  currentTutorialGlossaryIndex = 0;
+  isTutorialOpen = false;
+  tutorialScrollEnabled = false;
+  isTutorialSubmenuOpen = false;
   isSettingsSubmenuOpen = false;
-  
-  // Show glossary by default
-  showTutorialGlossary();
 }
 
 function hideTutorialSubmenu() {
-  document.getElementById('tutorial-submenu').style.display = 'none';
   isTutorialOpen = false;
-  tutorialScrollEnabled = true;
+  tutorialScrollEnabled = false;
   isTutorialSubmenuOpen = false;
-  showSettingsSubmenu();
 }
 
 function showTutorialSection(sectionId) {
@@ -5644,204 +5387,22 @@ function updateTutorialGlossarySelection() {
   }
 }
 
-// =============================================
-// GUIDED TOUR ENGINE
-// =============================================
-
-let tourCurrentStep = 0;
+// Guided tour removed
 let tourActive = false;
-
-const TOUR_STEPS = [
-  { section: 'Welcome', title: '👋 Welcome to the Audio Tour!', body: 'This tour walks you through every feature of Moire. Use Next and Back or scroll wheel to navigate. Pressing the side button advances the tour. Tap Skip Tour to exit. Program saves your position.' },
-  { section: 'Basic Controls', title: '📸 Side Button — Take a Photo', body: 'Press the side button on your R1 to capture a photo. It is sent for AI transformation using the visible selected preset. You may also speak your preset with a long press.' },
-  { section: 'Basic Controls', title: '🔄 Scroll Wheel — Change Presets', get body() { return `Rotate the scroll wheel up or down to cycle through all ${totalFactoryPresetCount || 800} unlocked visible AI presets. The current preset name is shown at the bottom of the screen.`; } },
-  { section: 'Basic Controls', title: '📷 Camera Switch Button', body: 'Tap the camera icon to toggle between front selfie and back camera at any time before taking a photo.' },
-  { section: 'Basic Controls', title: '☰ Menu Button', body: 'Opens the main menu where you access all settings ⚙️, preset management, import preset tools, and this tutorial. The main menu has a plus (+) button in the header to create new presets.' },
-  { section: 'Basic Controls', title: '🖼️ Gallery Button', body: 'Opens your saved photo gallery. View, re-prompt, batch process, organize your images into folders, or delete your images from here.' },
-  { section: 'Basic Controls', title: '🔁 New Photo Button', body: 'After a photo is captured, the program shows you an image preview and sends the image to be processed, tap New Photo or press the side button again to return to the live camera view.' },
-  { section: 'AI Presets', title: '✨ What Are AI Presets?', get body() { return `Presets are AI transformation instructions. Each one tells the AI how to reimagine your photo — as a comic book cover, oil painting, 3D print, ${totalFactoryPresetCount || 800} styles in all.`; } },
-  { section: 'AI Presets', title: '⭐ Favorites', body: 'In the main menu, the visible selected preset is highlighted. Tap the star next to any preset to mark it as a favorite. Favorites are used by Random Mode to choose the presets that will be randomized. If no favorites are chosen, random mode chooses between all visible presets.' },
-  { section: 'AI Presets', title: '🔍 Filter Presets', body: 'Use the search box in the main menu to quickly find presets by name or category. Tap a category tag at the bottom to filter by style. Tapping on the x next to the search box removes the keyboard. Double click to clear the text in the search bar.' },
-  { section: 'AI Presets', title: '🔊 Hear Preset Info', body: 'When browsing presets in the Import screen, tap any preset name to hear its description read aloud. Use the mute button in the header to toggle audio on or off.' },
-  { section: 'Special Modes', title: '🎯 Special Modes — How to Access', body: 'The left carousel is default visible on the main camera screen containing Menu, Gallery, Master Prompt, and Options buttons. Single click (default) on the main camera screen to hide/reveal the carousel and picker. This may be adjusted in settings.' },
-  { section: 'Special Modes', title: '🎲 Random Mode', body: 'Picks a random preset for every photo you take. Enable it from the left carousel Options button. If you have favorites selected it draws only from those, otherwise from all visible presets.' },
-  { section: 'Special Modes', title: '🎞️ Multi Preset', body: 'Select up to 20 presets to apply to a single photo. Tap the MULTI button at the bottom of the screen, choose presets, and tap Apply Selected. When you take a photo, each preset is sent in order with a 3 second gap between them.' },
-  { section: 'Special Modes', title: '🖼️🖼️ Combine images:', body: 'Click to take two images and apply a combined image preset instruction with your selected preset or speak the preset with long press of the side button.' },
-  { section: 'Special Modes', title: '📑 Layer presets:', body: 'Combine and apply multiple presets to a single image. Select primary preset and then add up to 4 more layers (5 in all). Does not work with spoken presets.' },
-  { section: 'Special Modes', title: '📝 Master Prompt', body: 'Located below the Menu button on the left side within a carousel. The MASTER button accesses Master Prompt settings.' },
-  { section: 'Gallery', title: '🖼️ Gallery Activities', body: 'Within the gallery there are thumbnails of captured images. You can either select multiple images to apply a preset, or select a single image to either edit, export or apply one or several presets.' },
-  { section: 'Uploading Images', title: '📥 Importing External Images', body: 'In the gallery, you may also bring any image from the web into the gallery using a QR code. Upload the image to catbox.moe, copy the direct link, and generate a QR code at qr-code-generator.com.' },
-  { section: 'Uploading Images', title: '📷 Scanning the QR Code', body: 'In the gallery, press Import then Scan QR Code. Point your R1 camera at the QR code and wait. The image will be automatically saved to your gallery.' },
-  { section: 'Uploading Images', title: '⚠️ Verify Your Link First', body: 'Before making the QR code, paste the link into a browser. If it shows only the image with nothing around it, it will work. If it shows a webpage with the image embedded, it will not work.' },
-  { section: 'Gallery', title: '☑️ Batch Operations', body: 'Tap the Select button to enter batch mode. Select multiple images, then apply one preset to all of them or delete them in bulk. If only two are selected, you may also combine them. Always tap DONE when finished.' },
-  { section: 'Gallery', title: '📁+ New Folder', body: 'Create a new folder to organize your saved images. Name the folder and save. Long press edits name. Images may be moved by selecting image(s) then long pressing the last image.' },
-  { section: 'Gallery', title: '🖼️🖼️ Combine Images', body: 'Tap the Select button to enter batch mode. Select two images, then click Combine to create one image. You can apply presets to create combined subjects into one final image using existing presets.' }, 
-  { section: 'Gallery', title: '📅 Sort and Filter', body: 'Sort by newest or oldest. Filter by date range. When filtering, always select the day after your end date. For example, to see December 25 photos, filter from December 25 to December 26.' },
-  { section: 'Gallery', title: '🖼️ Image Viewer', body: 'Tap a thumbnail image in the gallery to view it full-screen. The viewer is redesigned to give your photo maximum screen space. Pinch to zoom in and out.' },
-  { section: 'Gallery', title: '🎨 Applying Presets to Single Image', body: 'After clicking on a single image, Tap LOAD or MULTI to transform a saved image. Click twice on a preset to apply to the image. You can stack multiple transformations. You may also layer up to five presets.' },
-  { section: 'Gallery', title: '🏷️ Preset Header', body: 'At the very top of the image viewer a header shows the name of the currently loaded preset. Tap the header to hear the preset name and description.' },
-  { section: 'Gallery', title: '🗑️ Delete Button', body: 'The delete button is on the top-left corner of the single image viewer.' },
-  { section: 'Gallery', title: '🎠 Left Carousel', body: 'The MASTER button is located below the delete button and is visible by default (Single click (default) screen to hide — this may be adjusted in settings). It toggles Master Prompt mode.' },
-  { section: 'Gallery', title: '🎠 Right Carousel', body: 'The right side carousel has three buttons — ✏️ EDIT which opens the image editor, 📤 EXPORT which uploads to gofile.io, and 📑 LAYER which combines presets to single image. Single click (default) screen to hide the buttons. This may be adjusted in settings' },
-  { section: 'Gallery', title: '⬇️ Bottom Bar Buttons', body: 'Four buttons on the bottom of image viewer. PROMPT opens editor. LOAD opens preset selector. MULTI opens multi-preset selector. MAGIC transforms image using the loaded preset, or randomly if nothing is loaded.' },
-  { section: 'Gallery', title: '📤 Export to gofile.io', body: 'Tapping EXPORT in the right carousel. You get a QR code with a link that expires after 24 hours. Most useful in No Magic Mode.' },
-  { section: 'Image Editor', title: '✏️ Opening the Editor', body: 'While viewing any photo, the image viewer carousel contains the EDIT button. Tap it. The editor opens with crop, rotate, sharpen, auto-correct, and brightness and contrast controls.' },
-  { section: 'Image Editor', title: '✂️ Crop Tool', body: 'Tap Crop to activate. Two orange corner markers appear. Drag them to frame your desired area. Tap Crop again to apply.' },
-  { section: 'Image Editor', title: '🔄 Rotate Tool', body: 'Rotates your image 90 degrees clockwise each tap. Tap multiple times to reach 180, 270, or back to 0 degrees.' },
-  { section: 'Image Editor', title: '🔍 Sharpen and Auto Correct', body: 'Sharpen makes edges crisper. Auto Correct automatically balances brightness, contrast, and color. Great as a first step before manual tweaks.' },
-  { section: 'Image Editor', title: '☀️ Brightness and Contrast Sliders', body: 'At the top of the editor, drag the sliders to adjust brightness and contrast anywhere from negative 100 to positive 100 in real time.' },
-  { section: 'Image Editor', title: '↶ Undo and Save', body: 'Undo steps back through your edit history one step at a time. Saving an edited image creates a new image in your gallery. Close exits without saving.' },
-  { section: 'Settings', title: '▣ Resolution', body: 'Choose from VGA 640 by 480 up to HD 3264 by 2448. Lower resolutions are recommended if you want images to appear in the magic gallery and you want to save space in your r1 device. Camera program slows if a high resolution is chosen.' },
-  { section: 'Settings', title: '📐 Aspect Ratio', body: 'Choose 1 to 1 square or 16 to 9 letterbox. Leave both unchecked for neither. Default is neither. We highly recommend choosing an aspect ratio to display the full image, preventing accidental cropping.' },
-  { section: 'Settings', title: '📝 Master Prompt', body: 'Appends custom text to every AI transformation. Enable it first, then type your additions. Adding a name and occasion lets presets like Happy Holidays and Love Actually personalize automatically. Can also be toggled from the MASTER button inside the image viewer or on the main camera screen.' },
-  { section: 'Settings', title: '👁️ Visible Presets', body: 'Choose which imported presets appear in your menus. Select All, deselect individually, or remove all. Category tags show at the bottom when a preset is highlighted.' },
-  { section: 'Settings', title: '🔨 Preset Builder', body: 'Build your own custom AI presets. Choose a template, add chips for quality and style, enable random options with single or multi-selection groups, add critical rules, then save. Also accessible directly from the main menu plus (+) button.' },
-  { section: 'Settings', title: '🚫 No Magic Mode', body: 'Disables AI processing and works as a regular camera. Photos save only to the plugin gallery, not to the rabbit hole or magic gallery.' },
-  { section: 'Settings', title: '📥 Import Presets (Starting Style)', body: 'You begin with two unlocked presets-Caricature and Impressionism.  Import them from the Import Presets section to capture photos and begin the fun journey of unlocking your imported artistic library.' },
-  { section: 'Settings', title: '📥 Import Presets (Import Art)', body: 'Browse our external library in Settings. Check individual unlocked styles or use the All checkmark to select all  presets to import (assuming you have the credits).' },
-  { section: 'Settings', title: '📥 Import Presets (Unlocking Presets)', body: 'Imported styles first appear locked. To unlock one, you need a credit. Take a photo or reprompt in the gallery once with any preset you already own to get one credit. You only get one credit per unique preset!' },
-  { section: 'Settings', title: '🔄 Check for Updates', body: 'Checks for new or modified presets in the library. Any updates are flagged so you can re-import changed/updated presets that you own. If you do not import updated presets, the preset will not be updated. New presets appear locked.' },
-  { section: 'Settings', title: '⚙️ Button Settings', body: 'Includes the settings for the main camera screen carousel and the Gallery Image Viewer screen carousel buttons. You may select different colors for buttons and text in the main camera and gallery image viewer screens. You may also select opacity (default solid) and set how many taps to hide/reveal the buttons.' },
-  { section: 'Settings', title: '📖 Tutorial', body: 'Last section in the settings. This area includes this audio tour. It also includes an indexed tutorial with a search engine. Type to search or click on the search field and press the side button to speak the query.' },
-  { section: 'Tips and Advanced', title: '🏷️ Category Searching', body: 'Every preset has categories. When a preset is highlighted in the Visible Presets menu, its categories appear at the bottom. Tap a category to filter all presets in that group.' },
-  { section: 'Tips and Advanced', title: '🧠 Master Prompt Power Tip', body: 'Search for master or master prompt in the Visible Presets menu to find presets designed to work with Master Prompt. These respond to names, occasions, and custom context you provide. All presets may be affected by the Master Prompt.' },
-  { section: 'Tips and Advanced', title: '📶 Offline Queue', body: 'If you take photos and the program goes offline - no worries - photos queue automatically and may be synced to the rabbit hole once your connection returns. The queue count shows on the screen.' },
-  { section: 'Tips and Advanced', title: '🔁 Reset Database', body: 'The nuclear option in Settings. Wipes all custom presets and settings. Only imported presets from the library remain. Use only if something is seriously broken.' },
-  { section: 'Tips and Advanced', title: '💀 Content Filter Error', body: "If you go into your rabbit hole and you receive a content filter image error, this happens because AI is quirky. The beauty of Moire is you can reprompt. Keep trying until successful." },
-  { section: 'Tips and Advanced', title: '↑↓ Jump Navigation', body: 'In the setting or areas in the program with presets, clicking the up/down arrows once will move to the next section/page.  If you double click on the up/down arrow, it will jump to the top/bottom of the list.' },
-  { section: 'Troubleshooting', title: '❌ Camera Access Denied', body: 'This error will appear at the bottom of your main camera screen if you do not have any active presets, either imported or made with the preset builder.' },
-  { section: 'Done!', title: '🎉 Tour Complete!', body: "That's Moire. Now go make something wild! This tour or the text tutorial in this menu is here if you need a refresher." },
-];
-
-function tourSpeak(text) {
-  if (typeof PluginMessageHandler !== 'undefined') {
-    PluginMessageHandler.postMessage(JSON.stringify({
-      message: text,
-      wantsR1Response: true
-    }));
-  } else if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
-  }
-}
-
-function tourStopSpeaking() {
-  if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-  }
-}
-
-function startGuidedTour() {
-  const saved = localStorage.getItem(TOUR_PROGRESS_KEY);
-  tourCurrentStep = saved ? parseInt(saved, 10) : 0;
-  if (isNaN(tourCurrentStep) || tourCurrentStep >= TOUR_STEPS.length) tourCurrentStep = 0;
-  tourActive = true;
-  hideTutorialSubmenu();
-  document.getElementById('guided-tour-overlay').style.display = 'block';
-  setTimeout(() => { renderTourStep(false); }, 300);
-}
-
-function endGuidedTour() {
-  tourActive = false;
-  tourStopSpeaking();
-  // Save progress so user can resume later — clear it if they finished the last step
-  if (tourCurrentStep >= TOUR_STEPS.length - 1) {
-    localStorage.removeItem(TOUR_PROGRESS_KEY);
-  } else {
-    localStorage.setItem(TOUR_PROGRESS_KEY, tourCurrentStep.toString());
-  }
-  document.getElementById('guided-tour-overlay').style.display = 'none';
-  document.getElementById('tour-spotlight').style.display = 'none';
-  showTutorialSubmenu();
-}
-
-function tourNext() {
-  tourStopSpeaking();
-  if (tourCurrentStep < TOUR_STEPS.length - 1) {
-    tourCurrentStep++;
-    renderTourStep(false);
-  } else {
-    endGuidedTour();
-  }
-}
-
-function tourBack() {
-  tourStopSpeaking();
-  if (tourCurrentStep > 0) {
-    tourCurrentStep--;
-    renderTourStep(false);
-  }
-}
-
-function renderTourStep(speak) {
-  const step = TOUR_STEPS[tourCurrentStep];
-  const total = TOUR_STEPS.length;
-
-  document.getElementById('tour-step-badge').textContent = 'Step ' + (tourCurrentStep + 1) + ' of ' + total;
-  document.getElementById('tour-section-label').textContent = step.section;
-  document.getElementById('tour-card-title').textContent = step.title;
-  document.getElementById('tour-card-body').textContent = step.body;
-  document.getElementById('tour-progress-fill').style.width = (((tourCurrentStep + 1) / total) * 100) + '%';
-
-  const backBtn = document.getElementById('tour-btn-back');
-  if (backBtn) backBtn.disabled = tourCurrentStep === 0;
-
-  const soundBtn = document.getElementById('tour-btn-sound');
-  if (soundBtn) {
-    soundBtn.onclick = () => {
-      tourSpeak(step.title.replace(/[\p{Emoji}]/gu, '') + '. ' + step.body);
-    };
-  }
-
-  const nextBtn = document.getElementById('tour-btn-next');
-  if (nextBtn) nextBtn.textContent = tourCurrentStep === total - 1 ? 'Finish ✓' : 'Next ›';
-
-  // Only speak when user navigates, not on first load
-  if (speak) {
-    tourSpeak(step.title.replace(/[\p{Emoji}]/gu, '') + '. ' + step.body);
-  }
-
-  // Always center the card
-  const card = document.getElementById('tour-card');
-  card.style.transform = 'translate(-50%, -50%)';
-  card.style.top = '50%';
-  card.style.left = '50%';
-}
+function startGuidedTour() {}
+function endGuidedTour() { tourActive = false; }
+function tourNext() {}
+function tourBack() {}
 
 // Show import resolution submenu
 function showImportResolutionSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  const submenu = document.getElementById('import-resolution-submenu');
-  const list = document.getElementById('import-resolution-list');
-  
-  list.innerHTML = '';
-  IMPORT_RESOLUTION_OPTIONS.forEach((res, index) => {
-    const item = document.createElement('div');
-    item.className = 'resolution-item';
-    if (index === currentImportResolutionIndex) {
-      item.classList.add('selected');
-    }
-    item.textContent = res.name;
-    item.onclick = () => {
-      currentImportResolutionIndex = index;
-      saveImportResolution();
-      hideImportResolutionSubmenu();
-    };
-    list.appendChild(item);
-  });
-  
-  submenu.style.display = 'flex';
-  isImportResolutionSubmenuOpen = true;
+  currentImportResolutionIndex = 0;
+  isImportResolutionSubmenuOpen = false;
   currentImportResolutionIndex_Menu = 0;
 }
 
 // Hide import resolution submenu
 function hideImportResolutionSubmenu() {
-  document.getElementById('import-resolution-submenu').style.display = 'none';
-  document.getElementById('settings-submenu').style.display = 'flex';
   isImportResolutionSubmenuOpen = false;
 }
 
@@ -7688,46 +7249,13 @@ async function hideUnifiedMenu() {
 
 // Show Settings submenu
 function showSettingsSubmenu() {
-  const submenu = document.getElementById('settings-submenu');
-  const menu = document.getElementById('unified-menu');
-  
-  updateResolutionDisplay();
-  updateMasterPromptDisplay();
-
-  menu.style.display = 'none';
-  pauseCamera();
-  submenu.style.display = 'flex';
-  isMenuOpen = false; // ADD THIS LINE
-  isSettingsSubmenuOpen = true;
-  currentSettingsIndex = 0;
-  
-  // Highlight first item after render
-  setTimeout(() => {
-     updateSettingsSelection();
-  }, 50);
+  isSettingsSubmenuOpen = false;
 }
 
 // Hide Settings submenu
 function hideSettingsSubmenu() {
-  // Check if we should return to gallery
-  if (returnToGalleryFromMasterPrompt) {
-    returnToGalleryFromMasterPrompt = false;
-    document.getElementById('settings-submenu').style.display = 'none';
-    isSettingsSubmenuOpen = false;
-    document.getElementById('unified-menu').style.display = 'none';
-    isMenuOpen = false;
-    menuScrollEnabled = false;
-    // Show gallery first, then reopen the image viewer
-    showGallery(true).then(() => {
-      openImageViewer(savedViewerImageIndex);
-    });
-    return;
-  }
-  
-  document.getElementById('settings-submenu').style.display = 'none';
   isSettingsSubmenuOpen = false;
   currentSettingsIndex = 0;
-  showUnifiedMenu();
 }
 
 // Show Timer Settings submenu
@@ -7773,130 +7301,29 @@ function updateResolutionDisplay() {
 }
 
 function showResolutionSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  pauseCamera();
-  
-  const submenu = document.getElementById('resolution-submenu');
-  const list = document.getElementById('resolution-list');
-  list.innerHTML = '';
-  
-  RESOLUTION_PRESETS.forEach((preset, index) => {
-    const item = document.createElement('div');
-    item.className = 'resolution-item';
-    if (index === currentResolutionIndex) {
-      item.classList.add('active');
-    }
-    
-    const name = document.createElement('span');
-    name.className = 'resolution-name';
-    name.textContent = preset.name;
-    
-    item.appendChild(name);
-    
-    item.onclick = () => {
-      changeResolution(index);
-      hideResolutionSubmenu();
-    };
-    
-    list.appendChild(item);
-  });
-  
-  submenu.style.display = 'flex';
-  isResolutionSubmenuOpen = true;
+  currentResolutionIndex = 0;
+  isResolutionSubmenuOpen = false;
   isSettingsSubmenuOpen = false;
-  currentResolutionIndex_Menu = 0;
-  
-  // Update selection after render
-  setTimeout(() => {
-    const items = submenu.querySelectorAll('.resolution-item');
-    updateResolutionMenuSelection(items);
-  }, 100);
 }
 
 async function hideResolutionSubmenu() {
-  document.getElementById('resolution-submenu').style.display = 'none';
   isResolutionSubmenuOpen = false;
   currentResolutionIndex_Menu = 0;
-  showSettingsSubmenu();
-  // await resumeCamera();
 }
 
 function showMasterPromptSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  pauseCamera();
-  
-  const submenu = document.getElementById('master-prompt-submenu');
-  const checkbox = document.getElementById('master-prompt-enabled');
-  const textarea = document.getElementById('master-prompt-text');
-  const charCount = document.getElementById('master-prompt-char-count');
-  
-  if (checkbox) {
-    checkbox.checked = masterPromptEnabled;
-  }
-  
-  if (textarea) {
-    textarea.value = masterPromptText;
-    textarea.disabled = !masterPromptEnabled;
-    if (charCount) {
-      charCount.textContent = masterPromptText.length;
-    }
-  }
-  
-  submenu.style.display = 'flex';
-  isMasterPromptSubmenuOpen = true;
+  masterPromptText = '';
+  masterPromptEnabled = false;
+  selectedAspectRatio = 'none';
+  isMasterPromptSubmenuOpen = false;
   isSettingsSubmenuOpen = false;
 }
 
 async function hideMasterPromptSubmenu() {
-  // Check if we should return to gallery
-  if (returnToGalleryFromMasterPrompt) {
-    returnToGalleryFromMasterPrompt = false;
-    document.getElementById('master-prompt-submenu').style.display = 'none';
-    isMasterPromptSubmenuOpen = false;
-    document.getElementById('settings-submenu').style.display = 'none';
-    isSettingsSubmenuOpen = false;
-    document.getElementById('unified-menu').style.display = 'none';
-    isMenuOpen = false;
-    menuScrollEnabled = false;
-    // Show gallery first, then reopen the image viewer
-    await showGallery(true);
-    openImageViewer(savedViewerImageIndex);
-    return;
-  }
-
-  // Check if opened from the camera left carousel
-  if (window.masterPromptFromCamera) {
-    window.masterPromptFromCamera = false;
-    document.getElementById('master-prompt-submenu').style.display = 'none';
-    isMasterPromptSubmenuOpen = false;
-    isSettingsSubmenuOpen = false;
-    // Sync the carousel MP button color
-    const camMpBtn = document.getElementById('cam-master-prompt-btn');
-    if (camMpBtn) {
-      if (masterPromptEnabled) camMpBtn.classList.add('enabled');
-      else camMpBtn.classList.remove('enabled');
-    }
-    // Update all indicators and display
-    updateMasterPromptIndicator();
-    updateMasterPromptDisplay();
-    notifyPresetChange();
-    // Show left carousel again and resume camera
-    const leftCamCarousel = document.getElementById('left-cam-carousel');
-    if (leftCamCarousel) leftCamCarousel.style.display = 'flex';
-    await resumeCamera();
-    return;
-  }
-  
-  document.getElementById('master-prompt-submenu').style.display = 'none';
+  returnToGalleryFromMasterPrompt = false;
+  window.masterPromptFromCamera = false;
   isMasterPromptSubmenuOpen = false;
-  // Sync camera left carousel MP button color
-  const camMpBtnHide = document.getElementById('cam-master-prompt-btn');
-  if (camMpBtnHide) {
-    if (masterPromptEnabled) camMpBtnHide.classList.add('enabled');
-    else camMpBtnHide.classList.remove('enabled');
-  }
-  // await resumeCamera();
-  showSettingsSubmenu();
+  isSettingsSubmenuOpen = false;
 }
 
 function updateCamTapHighlight(mode) {
@@ -7994,17 +7421,11 @@ function _switchBtnSettingsTab(tab) {
 }
 
 function showButtonSettingsSubmenu(tab) {
-  document.getElementById('settings-submenu').style.display = 'none';
-  _syncBtnSettingsCamTab();
-  _syncBtnSettingsGalleryTab();
-  _switchBtnSettingsTab(tab || 'cam');
-  document.getElementById('button-settings-submenu').style.display = 'flex';
   isSettingsSubmenuOpen = false;
 }
 
 function hideButtonSettingsSubmenu() {
-  document.getElementById('button-settings-submenu').style.display = 'none';
-  showSettingsSubmenu();
+  isSettingsSubmenuOpen = false;
 }
 
 // Aliases so any other code that calls the old names still works
@@ -8014,19 +7435,13 @@ function showGalleryViewerScreenSubmenu() { showButtonSettingsSubmenu('gallery')
 function hideGalleryViewerScreenSubmenu() { hideButtonSettingsSubmenu(); }
 
 function showAspectRatioSubmenu() {
-  document.getElementById('settings-submenu').style.display = 'none';
-  pauseCamera();
-  
-  const submenu = document.getElementById('aspect-ratio-submenu');
-  submenu.style.display = 'flex';
-  isAspectRatioSubmenuOpen = true;
+  selectedAspectRatio = 'none';
+  isAspectRatioSubmenuOpen = false;
   isSettingsSubmenuOpen = false;
 }
 
 async function hideAspectRatioSubmenu() {
-  document.getElementById('aspect-ratio-submenu').style.display = 'none';
   isAspectRatioSubmenuOpen = false;
-  showSettingsSubmenu();
 }
 
 function updateAspectRatioDisplay() {
@@ -8051,52 +7466,21 @@ function updateMasterPromptDisplay() {
 }
 
 function saveMasterPrompt() {
-  try {
-    localStorage.setItem(MASTER_PROMPT_STORAGE_KEY, masterPromptText);
-    localStorage.setItem(MASTER_PROMPT_ENABLED_KEY, masterPromptEnabled.toString());
-    localStorage.setItem(ASPECT_RATIO_STORAGE_KEY, selectedAspectRatio);
-  } catch (err) {
-    console.error('Failed to save master prompt:', err);
-  }
+  masterPromptText = '';
+  masterPromptEnabled = false;
+  selectedAspectRatio = 'none';
 }
 
 function loadMasterPrompt() {
+  masterPromptText = '';
+  masterPromptEnabled = false;
+  selectedAspectRatio = 'none';
   try {
-    const savedText = localStorage.getItem(MASTER_PROMPT_STORAGE_KEY);
-    const savedEnabled = localStorage.getItem(MASTER_PROMPT_ENABLED_KEY);
-    
-    if (savedText !== null) {
-      masterPromptText = savedText;
-    }
-    
-    if (savedEnabled !== null) {
-      masterPromptEnabled = savedEnabled === 'true';
-    }
-    
-    // Initialize master prompt indicator
-    updateMasterPromptIndicator();
-    
-    // Load aspect ratio
-    const savedAspectRatio = localStorage.getItem(ASPECT_RATIO_STORAGE_KEY);
-    if (savedAspectRatio) {
-      selectedAspectRatio = savedAspectRatio;
-      
-      // Update checkboxes
-      const checkbox1_1 = document.getElementById('aspect-ratio-1-1');
-      const checkbox16_9 = document.getElementById('aspect-ratio-16-9');
-      
-      if (checkbox1_1) checkbox1_1.checked = (selectedAspectRatio === '1:1');
-      if (checkbox16_9) checkbox16_9.checked = (selectedAspectRatio === '16:9');
-      
-      // Update display
-      const displayElement = document.getElementById('current-aspect-ratio-display');
-      if (displayElement) {
-        displayElement.textContent = selectedAspectRatio === 'none' ? 'None' : selectedAspectRatio;
-      }
-    }
-  } catch (err) {
-    console.error('Failed to load master prompt:', err);
-  }
+    localStorage.removeItem('r1_camera_master_prompt');
+    localStorage.removeItem('r1_camera_master_prompt_enabled');
+    localStorage.removeItem('r1_camera_aspect_ratio');
+  } catch (err) {}
+  updateMasterPromptIndicator();
 }
 
 // Load selection history from localStorage
