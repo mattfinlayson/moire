@@ -869,6 +869,8 @@ function getFilteredAndSortedGallery() {
 }
 
 async function showGallery(renderOnly = false) {
+  renderOnly = renderOnly === true;
+
   if (!renderOnly) {
     pauseCamera();
     // Clear any captured image before opening gallery
@@ -9713,7 +9715,9 @@ const result = await presetImporter.import();
   
   const galleryBtn = document.getElementById('gallery-button');
   if (galleryBtn) {
-    galleryBtn.addEventListener('click', showGallery);
+    galleryBtn.addEventListener('click', () => {
+      showGallery();
+    });
   }
   
   const closeGalleryBtn = document.getElementById('close-gallery');
