@@ -169,7 +169,7 @@ let isRandomMode = false;
 
 let noMagicMode = false;
 let lastWheelCameraSwitchAt = 0;
-const PHOTO_PREVIEW_RETURN_DELAY_MS = 5000;
+const PHOTO_PREVIEW_RETURN_DELAY_MS = 3000;
 let photoPreviewReturnTimer = null;
 const APP_VERSION = (() => {
   const d = new Date(document.lastModified);
@@ -531,6 +531,11 @@ function handleWheelCameraSwitch() {
   return true;
 }
 
+function toPluginImageBase64(imageBase64) {
+  if (typeof imageBase64 !== 'string') return imageBase64;
+  return imageBase64.startsWith('data:') ? imageBase64.split(',', 2)[1] : imageBase64;
+}
+
 function clearPhotoPreviewReturnTimer() {
   if (photoPreviewReturnTimer) {
     clearTimeout(photoPreviewReturnTimer);
@@ -728,14 +733,24 @@ async function saveImageToDB(imageItem) {
     const request = objectStore.put(imageItem);
     
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        console.log('Image saved to IndexedDB');
-        resolve();
-      };
-      
       request.onerror = () => {
         console.error('Failed to save image:', request.error);
         reject(request.error);
+      };
+
+      transaction.oncomplete = () => {
+        console.log('Image saved to IndexedDB');
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error('Gallery save transaction failed:', transaction.error);
+        reject(transaction.error);
+      };
+
+      transaction.onabort = () => {
+        console.error('Gallery save transaction aborted:', transaction.error);
+        reject(transaction.error || new Error('Gallery save transaction aborted'));
       };
     });
   } catch (err) {
@@ -1791,7 +1806,7 @@ async function submitMagicTransform() {
     const resizedImageBase64 = await resizeImageForSubmission(item.imageBase64);
     const magicPrompt = buildCombinedLayerPrompt(galleryLayerPresets);
     if (typeof PluginMessageHandler !== 'undefined') {
-      const layerMagicPayload = { pluginId: 'com.r1.pixelart', imageBase64: resizedImageBase64 };
+      const layerMagicPayload = { pluginId: 'com.r1.pixelart', imageBase64: toPluginImageBase64(resizedImageBase64) };
       if (magicPrompt && magicPrompt.trim()) layerMagicPayload.message = magicPrompt;
       PluginMessageHandler.postMessage(JSON.stringify(layerMagicPayload));
       alert('Magic transform submitted! You can submit again with a different prompt.');
@@ -1852,7 +1867,7 @@ async function submitMagicTransform() {
     }
     const magicPayload = {
       pluginId: 'com.r1.pixelart',
-      imageBase64: resizedImageBase64
+      imageBase64: toPluginImageBase64(resizedImageBase64)
     };
     if (magicPrompt && magicPrompt.trim()) {
       magicPayload.message = magicPrompt;
@@ -2028,7 +2043,7 @@ async function processBatchImages(preset, imagesToProcess) {
       if (typeof PluginMessageHandler !== 'undefined') {
         const batchPayload = {
           pluginId: 'com.r1.pixelart',
-          imageBase64: resizedImageBase64
+          imageBase64: toPluginImageBase64(resizedImageBase64)
         };
         if (finalPrompt && finalPrompt.trim()) {
           batchPayload.message = finalPrompt;
@@ -2890,7 +2905,7 @@ async function applyMultiplePresets() {
       if (typeof PluginMessageHandler !== 'undefined') {
         const multiPayload = {
           pluginId: 'com.r1.pixelart',
-          imageBase64: resizedImageBase64
+          imageBase64: toPluginImageBase64(resizedImageBase64)
         };
         if (finalPrompt && finalPrompt.trim()) {
           multiPayload.message = finalPrompt;
@@ -5089,7 +5104,7 @@ async function applyGalleryLayerPresets() {
   if (typeof PluginMessageHandler !== 'undefined') {
     const layerPayload = {
       pluginId: 'com.r1.pixelart',
-      imageBase64: resizedImageBase64
+      imageBase64: toPluginImageBase64(resizedImageBase64)
     };
     if (combinedPrompt && combinedPrompt.trim()) {
       layerPayload.message = combinedPrompt;
@@ -6506,7 +6521,7 @@ async function syncQueuedPhotos() {
         if (item.isCombined) window.isCombinedMode = false;
         const syncPayload = {
           pluginId: 'com.r1.pixelart',
-          imageBase64: item.imageBase64
+          imageBase64: toPluginImageBase64(item.imageBase64)
         };
         if (syncedPrompt && syncedPrompt.trim()) {
           syncPayload.message = syncedPrompt;
