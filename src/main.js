@@ -6749,11 +6749,10 @@ addToGallery(dataUrl);
     updateQueueDisplay();
 
     if (isOnline && !noMagicMode) {
-            if (!isSyncing) {
+      if (!isSyncing) {
         syncQueuedPhotos();
       }
-    } else {
-          }
+    }
 
     // If timer is NOT active, clear multi-preset state after firing
     clearCameraMultiPresets();
@@ -6783,9 +6782,8 @@ addToGallery(dataUrl);
     updateQueueDisplay();
 
     if (isOnline && !noMagicMode) {
-            if (!isSyncing) syncQueuedPhotos();
-    } else {
-          }
+      if (!isSyncing) syncQueuedPhotos();
+    }
 
     // Layer mode persists — user must tap the lit button to clear it
     return;
@@ -6813,14 +6811,13 @@ addToGallery(dataUrl);
   // If Manual Options is enabled and preset has options, show modal
   
   if (isOnline) {
-    const message = noMagicMode 
-      ? 'Photo saved!'
-      : 'Photo saved! Uploading...';
-        if (!isSyncing) {
+    showStyleReveal(noMagicMode ? 'Photo saved!' : 'Photo saved! Uploading...');
+    if (!isSyncing) {
       syncQueuedPhotos();
     }
   } else {
-      }
+    showStyleReveal('Photo saved!');
+  }
   
   if (typeof PluginMessageHandler !== 'undefined') {
     PluginMessageHandler.postMessage(JSON.stringify({ 
