@@ -4945,13 +4945,13 @@ function selectCurrentVisiblePresetsItem() {
 function toggleNoMagicMode() {
   noMagicMode = !noMagicMode;
   
-  const statusElement = document.getElementById('no-magic-status');
-  
   try {
     localStorage.setItem(NO_MAGIC_MODE_KEY, JSON.stringify(noMagicMode));
   } catch (err) {
     console.error('Failed to save No Magic mode:', err);
   }
+
+  updateNoMagicModeStatus();
   
   // Update the camera footer immediately
   notifyPresetChange();
@@ -4963,17 +4963,24 @@ function toggleNoMagicMode() {
   }
 }
 
+function updateNoMagicModeStatus() {
+  const statusElement = document.getElementById('no-magic-status');
+  if (statusElement) {
+    statusElement.textContent = noMagicMode ? 'Enabled' : 'Disabled';
+  }
+}
+
 function loadNoMagicMode() {
   try {
     const saved = localStorage.getItem(NO_MAGIC_MODE_KEY);
     if (saved !== null) {
       noMagicMode = JSON.parse(saved);
-      
-      const statusElement = document.getElementById('no-magic-status');
-      
-      // Update the camera footer on startup if NO MAGIC is active
-      notifyPresetChange();
     }
+
+    updateNoMagicModeStatus();
+
+    // Update the camera footer on startup if NO MAGIC is active
+    if (noMagicMode) notifyPresetChange();
   } catch (err) {
     console.error('Failed to load No Magic mode:', err);
   }
@@ -6841,6 +6848,20 @@ async function capturePhoto() {
     timestamp: Date.now()
   };
   
+  if (noMagicMode) {
+    showStyleReveal('Photo saved!');
+    if (typeof PluginMessageHandler !== 'undefined') {
+      PluginMessageHandler.postMessage(JSON.stringify({
+        action: 'photo_captured',
+        queued: false,
+        noMagicMode: true,
+        queueLength: photoQueue.length,
+        timestamp: Date.now()
+      }));
+    }
+    return;
+  }
+
   // Add to queue BEFORE showing modal
   photoQueue.push(queueItem);
   saveQueue();
@@ -6869,6 +6890,12 @@ async function capturePhoto() {
 
 async function syncQueuedPhotos() {
   if (photoQueue.length === 0 || isSyncing) {
+    return;
+  }
+
+  if (noMagicMode) {
+    console.log('No Magic Mode enabled; leaving queued photos unsynced');
+    showStyleReveal('No Magic Mode');
     return;
   }
   
