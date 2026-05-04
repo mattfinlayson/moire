@@ -741,29 +741,18 @@ async function saveImageToDB(imageItem) {
     const request = objectStore.put(imageItem);
     
     return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        console.log('Image saved to IndexedDB');
+        resolve();
+      };
+      
       request.onerror = () => {
         console.error('Failed to save image:', request.error);
         reject(request.error);
       };
-
-      transaction.oncomplete = () => {
-        console.log('Image saved to IndexedDB');
-        resolve();
-      };
-
-      transaction.onerror = () => {
-        console.error('Gallery save transaction failed:', transaction.error);
-        reject(transaction.error);
-      };
-
-      transaction.onabort = () => {
-        console.error('Gallery save transaction aborted:', transaction.error);
-        reject(transaction.error || new Error('Gallery save transaction aborted'));
-      };
     });
   } catch (err) {
     console.error('Error saving image:', err);
-    throw err;
   }
 }
 
@@ -6325,14 +6314,10 @@ async function capturePhoto() {
     resolutionButton.style.display = 'none';
   }
   
-  try {
-    await addToGallery(dataUrl);
-    schedulePhotoPreviewReturn();
-  } catch (err) {
+  addToGallery(dataUrl).catch(err => {
     console.error('Failed to save captured photo to gallery:', err);
-    showStyleReveal('Save failed');
-    return;
-  }
+  });
+  schedulePhotoPreviewReturn();
 
   // PRESET CREDIT GAME — earn 1 credit per unique imported preset used to take a photo
 
