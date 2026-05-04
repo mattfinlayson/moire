@@ -463,6 +463,20 @@ let visiblePresetsScrollEnabled = true;
 // Picker state
 let selectedPickerPreset = null;
 
+function getPickerSelectedPreset() {
+  if (selectedPickerPreset && CAMERA_PRESETS.includes(selectedPickerPreset)) {
+    return selectedPickerPreset;
+  }
+
+  const primary = document.getElementById('picker-primary');
+  if (primary && primary._preset && CAMERA_PRESETS.includes(primary._preset)) {
+    selectedPickerPreset = primary._preset;
+    return selectedPickerPreset;
+  }
+
+  return null;
+}
+
 function generatePickerOptions() {
   const sortedPresets = getSortedPresets();
 
@@ -522,6 +536,16 @@ function renderPicker() {
 
   // Default selection = primary
   selectedPickerPreset = options.primary;
+}
+
+function shufflePickerOptions() {
+  const pickerOverlay = document.getElementById('picker-overlay');
+  if (pickerOverlay && pickerOverlay.style.display === 'flex') {
+    renderPicker();
+    return true;
+  }
+
+  return false;
 }
 
 (function setupPickerHandlers() {
@@ -716,6 +740,7 @@ async function saveImageToDB(imageItem) {
     });
   } catch (err) {
     console.error('Error saving image:', err);
+    throw err;
   }
 }
 
@@ -6613,20 +6638,23 @@ async function resumeCamera() {
 }
 
 // Capture photo and send to WebSocket
-function capturePhoto() {
+async function capturePhoto() {
   if (!stream) return;
 
-  if (isRandomMode) {
-    // Picker path: use selected picker preset, or primary as default
-    if (selectedPickerPreset) {
-      currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === selectedPickerPreset);
-    } else {
-      currentPresetIndex = getRandomPresetIndex();
-    }
+  const pickerPreset = getPickerSelectedPreset();
+  if (pickerPreset) {
+    currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === pickerPreset);
   } else {
     currentPresetIndex = getRandomPresetIndex();
   }
-  showStyleReveal(CAMERA_PRESETS[currentPresetIndex].name);
+
+  const activePreset = CAMERA_PRESETS[currentPresetIndex] || CAMERA_PRESETS[0];
+  if (!activePreset) {
+    showStyleReveal('No presets available');
+    return;
+  }
+  currentPresetIndex = CAMERA_PRESETS.findIndex(p => p === activePreset);
+  showStyleReveal(activePreset.name);
 
   // Only resize if dimensions actually changed to save CPU
   if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -6710,7 +6738,13 @@ function capturePhoto() {
     resolutionButton.style.display = 'none';
   }
   
-addToGallery(dataUrl);
+  try {
+    await addToGallery(dataUrl);
+  } catch (err) {
+    console.error('Failed to save captured photo to gallery:', err);
+    showStyleReveal('Save failed');
+    return;
+  }
 
   // PRESET CREDIT GAME — earn 1 credit per unique imported preset used to take a photo
 
@@ -6718,7 +6752,6 @@ addToGallery(dataUrl);
     try {
       const imported = presetImporter.getImportedPresets();
       if (imported.length > 0) {
-        const activePreset = CAMERA_PRESETS[currentPresetIndex];
         const usedPresetName = (activePreset && activePreset.name) ? activePreset.name : (imported[0] ? imported[0].name : '');
         const credited = usedPresetName ? earnCredit(usedPresetName) : false;
         if (credited) {
@@ -7103,7 +7136,10 @@ window.addEventListener('sideClick', () => {
       // Take photo 2 immediately
       const dataUrl = captureRawPhotoDataUrl();
       if (dataUrl) {
-        addToGallery(dataUrl);
+        addToGallery(dataUrl).catch(err => {
+          console.error('Failed to save first combine photo to gallery:', err);
+          showStyleReveal('Save failed');
+        });
         const photo1 = window.cameraCombineFirstPhoto;
         window.cameraCombineFirstPhoto = null;
         const voicePresetForCombine = window.cameraCombineVoicePreset || null;
@@ -7220,11 +7256,7 @@ window.addEventListener('scrollUp', () => {
   }
 
   // Picker shuffle — intercept camera cycling when picker is visible
-  const pickerOverlay = document.getElementById('picker-overlay');
-  if (pickerOverlay && pickerOverlay.style.display === 'flex') {
-    renderPicker();
-    return;
-  }
+  if (shufflePickerOptions()) return;
 
 });
 
@@ -7327,6 +7359,9 @@ window.addEventListener('scrollDown', () => {
     scrollQueueDown();
     return;
   }
+
+  // Picker shuffle — intercept camera cycling when picker is visible
+  if (shufflePickerOptions()) return;
   
 });
 
@@ -11586,6 +11621,7 @@ console.log('AI Camera Styles app initialized!');
   document.addEventListener('touchend', (e) => {
     if (!isOnMainCameraScreen()) return;
     if (e.changedTouches.length !== 1) return;
+    if (e.target.closest('.picker-overlay')) return;
 
     const s = window._camBtnSettings;
 
@@ -11797,7 +11833,10 @@ console.log('AI Camera Styles app initialized!');
         if (window.isCameraLiveCombineMode) {
           const dataUrl = captureRawPhotoDataUrl();
           if (dataUrl) {
-            addToGallery(dataUrl);
+            addToGallery(dataUrl).catch(err => {
+              console.error('Failed to save first combine photo to gallery:', err);
+              showStyleReveal('Save failed');
+            });
             window.cameraCombineFirstPhoto = dataUrl;
             // Return to live camera view so user can see what they are shooting for photo 2
             capturedImage.style.display = 'none';
