@@ -169,6 +169,8 @@ let isRandomMode = false;
 
 let noMagicMode = false;
 let lastWheelCameraSwitchAt = 0;
+const PHOTO_PREVIEW_RETURN_DELAY_MS = 5000;
+let photoPreviewReturnTimer = null;
 const APP_VERSION = (() => {
   const d = new Date(document.lastModified);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -527,6 +529,23 @@ function handleWheelCameraSwitch() {
   lastWheelCameraSwitchAt = now;
   switchCamera();
   return true;
+}
+
+function clearPhotoPreviewReturnTimer() {
+  if (photoPreviewReturnTimer) {
+    clearTimeout(photoPreviewReturnTimer);
+    photoPreviewReturnTimer = null;
+  }
+}
+
+function schedulePhotoPreviewReturn() {
+  clearPhotoPreviewReturnTimer();
+  photoPreviewReturnTimer = setTimeout(() => {
+    photoPreviewReturnTimer = null;
+    if (capturedImage?.style.display === 'block' && video?.style.display === 'none') {
+      resetToCamera();
+    }
+  }, PHOTO_PREVIEW_RETURN_DELAY_MS);
 }
 
 (function setupPickerHandlers() {
@@ -6310,6 +6329,7 @@ async function capturePhoto() {
   
   try {
     await addToGallery(dataUrl);
+    schedulePhotoPreviewReturn();
   } catch (err) {
     console.error('Failed to save captured photo to gallery:', err);
     showStyleReveal('Save failed');
@@ -6983,6 +7003,7 @@ if (typeof PluginMessageHandler !== 'undefined') {
 
 // Reset button handler
 function resetToCamera() {
+  clearPhotoPreviewReturnTimer();
   capturedImage.style.display = 'none';
 
   capturedImage.style.transform = 'none';
