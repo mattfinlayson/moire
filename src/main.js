@@ -531,21 +531,17 @@ function handleWheelCameraSwitch() {
   return true;
 }
 
-function toPluginImageBase64(imageBase64) {
-  if (typeof imageBase64 !== 'string') return imageBase64;
-  return imageBase64.startsWith('data:') ? imageBase64.split(',', 2)[1] : imageBase64;
-}
-
 function buildMagicGalleryPayload(imageBase64, prompt) {
-  return {
+  const payload = {
     pluginId: 'com.r1.pixelart',
-    message: prompt && prompt.trim() ? prompt : 'Transform this photo into a magical variation.',
-    useLLM: true,
-    useSerpAPI: false,
-    wantsR1Response: false,
-    wantsJournalEntry: true,
-    imageBase64: toPluginImageBase64(imageBase64)
+    imageBase64: imageBase64
   };
+
+  if (prompt && prompt.trim()) {
+    payload.message = prompt;
+  }
+
+  return payload;
 }
 
 function clearPhotoPreviewReturnTimer() {
