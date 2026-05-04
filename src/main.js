@@ -168,6 +168,7 @@ const MAX_HISTORY_PER_PRESET = 5; // Remember last 5 selections per preset
 let isRandomMode = false;
 
 let noMagicMode = false;
+let lastWheelCameraSwitchAt = 0;
 const APP_VERSION = (() => {
   const d = new Date(document.lastModified);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -517,14 +518,15 @@ function renderPicker() {
   selectedPickerPreset = options.primary;
 }
 
-function shufflePickerOptions() {
-  const pickerOverlay = document.getElementById('picker-overlay');
-  if (pickerOverlay && pickerOverlay.style.display === 'flex') {
-    renderPicker();
-    return true;
-  }
+function handleWheelCameraSwitch() {
+  if (!stream || availableCameras.length <= 1 || isLoadingCamera) return false;
 
-  return false;
+  const now = Date.now();
+  if (now - lastWheelCameraSwitchAt < 600) return true;
+
+  lastWheelCameraSwitchAt = now;
+  switchCamera();
+  return true;
 }
 
 (function setupPickerHandlers() {
@@ -5964,7 +5966,7 @@ async function initCamera() {
     }
     
     const cameraButton = document.getElementById('camera-button');
-    if (availableCameras.length > 1) {
+    if (cameraButton && availableCameras.length > 1) {
       cameraButton.style.display = 'flex';
     }
     
@@ -6843,8 +6845,7 @@ window.addEventListener('scrollUp', () => {
     return;
   }
 
-  // Picker shuffle — intercept camera cycling when picker is visible
-  if (shufflePickerOptions()) return;
+  if (handleWheelCameraSwitch()) return;
 
 });
 
@@ -6948,8 +6949,7 @@ window.addEventListener('scrollDown', () => {
     return;
   }
 
-  // Picker shuffle — intercept camera cycling when picker is visible
-  if (shufflePickerOptions()) return;
+  if (handleWheelCameraSwitch()) return;
   
 });
 
@@ -10963,7 +10963,6 @@ console.log('AI Camera Styles app initialized!');
       .left-cam-btn { color: ${fc} !important; }
       .mode-button:not(.random-active):not(.active):not(.camera-multi-active):not(.combine-active):not(.layer-active) { background: ${bg} !important; }
       .mode-button { color: ${fc} !important; }
-      .camera-button { background: ${bg} !important; }
       .mode-label { color: ${fc} !important; }
       .button-label { color: ${fc} !important; }
     `;
