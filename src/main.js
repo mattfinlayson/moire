@@ -10716,36 +10716,39 @@ async function importFromQRCode() {
 }
 
 // Database reset handler - clears ALL modifications and custom presets
-document.getElementById('factory-reset-button').addEventListener('click', async () => {
-  const message = hasImportedPresets 
-    ? 'This will delete ALL custom presets and undo ALL modifications, returning to your clean imported preset list. This cannot be undone. Continue?'
-    : 'This will delete ALL custom presets and restore all presets to their original state. This cannot be undone. Continue?';
-  
-  if (await confirm(message)) {
-    // Clear ALL records from preset storage (modifications, deletions, AND custom presets)
-    await presetStorage.clearAll();
+const factoryResetButton = document.getElementById('factory-reset-button');
+if (factoryResetButton) {
+  factoryResetButton.addEventListener('click', async () => {
+    const message = hasImportedPresets 
+      ? 'This will delete ALL custom presets and undo ALL modifications, returning to your clean imported preset list. This cannot be undone. Continue?'
+      : 'This will delete ALL custom presets and restore all presets to their original state. This cannot be undone. Continue?';
     
-    // Clear any corrupt or stale photo queue from localStorage
-    photoQueue = [];
-    saveQueue();
-    updateQueueDisplay();
-    
-    // Reload presets from imported list or factory presets
-    CAMERA_PRESETS = await mergePresetsWithStorage();
-    
-    // Reset visible presets to show everything (fresh start)
-    if (CAMERA_PRESETS.length > 0) {
-        visiblePresets = CAMERA_PRESETS.map(p => p.name);
-        saveVisiblePresets();
+    if (await confirm(message)) {
+      // Clear ALL records from preset storage (modifications, deletions, AND custom presets)
+      await presetStorage.clearAll();
+      
+      // Clear any corrupt or stale photo queue from localStorage
+      photoQueue = [];
+      saveQueue();
+      updateQueueDisplay();
+      
+      // Reload presets from imported list or factory presets
+      CAMERA_PRESETS = await mergePresetsWithStorage();
+      
+      // Reset visible presets to show everything (fresh start)
+      if (CAMERA_PRESETS.length > 0) {
+          visiblePresets = CAMERA_PRESETS.map(p => p.name);
+          saveVisiblePresets();
+      }
+      
+          
+      const successMessage = hasImportedPresets
+        ? 'All custom presets deleted, modifications cleared, and queue reset. Reset to imported presets!'
+        : 'All custom presets deleted, modifications cleared, and queue reset!';
+      alert(successMessage);
     }
-    
-        
-    const successMessage = hasImportedPresets
-      ? 'All custom presets deleted, modifications cleared, and queue reset. Reset to imported presets!'
-      : 'All custom presets deleted, modifications cleared, and queue reset!';
-    alert(successMessage);
-  }
-});
+  });
+}
 
 // Carousel infinite scroll logic
 document.addEventListener('DOMContentLoaded', function() {
